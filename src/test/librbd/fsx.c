@@ -1039,6 +1039,7 @@ test(void)
 
 	switch (op) {
 	case OP_READ:
+		goto out;
 		TRIM_OFF_LEN(offset, size, file_size);
 		doread(offset, size);
 		break;
@@ -1049,22 +1050,26 @@ test(void)
 		break;
 
 	case OP_MAPREAD:
+		goto out;
 		TRIM_OFF_LEN(offset, size, file_size);
 		exit(183);
 		break;
 
 	case OP_MAPWRITE:
+		goto out;
 		TRIM_OFF_LEN(offset, size, maxfilelen);
 		exit(182);
 		break;
 
 	case OP_TRUNCATE:
+		goto out;
 		if (!style)
 			size = random() % maxfilelen;
 		dotruncate(size);
 		break;
 
 	case OP_PUNCH_HOLE:
+		goto out;
 		TRIM_OFF_LEN(offset, size, file_size);
 		do_punch_hole(offset, size);
 		break;

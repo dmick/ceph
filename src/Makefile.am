@@ -1003,6 +1003,12 @@ test_cfuse_cache_invalidate_LDADD =
 test_cfuse_cache_invalidate_CXXFLAGS = ${AM_CXXFLAGS}
 bin_DEBUGPROGRAMS += test_cfuse_cache_invalidate
 
+flatcache_SOURCES = flatcache.cc
+flatcache_LDADD = libglobal.la librados.la librbd.la $(PTHREAD_LIBS) $(EXTRALIBS)
+flatcache_CXXFLAGS = ${AM_CXXFLAGS} 
+bin_DEBUGPROGRAMS += flatcache
+
+
 # shell scripts
 editpaths = sed \
 	-e 's|@bindir[@]|$(bindir)|g' \

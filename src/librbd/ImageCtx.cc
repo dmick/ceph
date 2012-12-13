@@ -536,17 +536,19 @@ namespace librbd {
   }
 
   void ImageCtx::invalidate_cache() {
+    bool unclean;
     assert(md_lock.is_locked());
     if (!object_cacher)
       return;
     cache_lock.Lock();
-    object_cacher->release_set(object_set);
+    unclean = object_cacher->release_set(object_set);
     cache_lock.Unlock();
+    ldout(cct, 10) << "first release in invalidate_cache: " << unclean << dendl;
     int r = flush_cache();
     if (r)
       lderr(cct) << "flush_cache returned " << r << dendl;
     cache_lock.Lock();
-    bool unclean = object_cacher->release_set(object_set);
+    unclean = object_cacher->release_set(object_set);
     cache_lock.Unlock();
     if (unclean)
       lderr(cct) << "could not release all objects from cache" << dendl;
