@@ -253,6 +253,29 @@ int do_command(CephToolCtx *ctx,
 {
   Mutex::Locker l(ctx->lock);
 
+  Cond my_cond;
+  Mutex my_lock("cephtool::my_lock");
+  int r = 0;
+  bool done;
+  C_SafeCond *onfinish = new C_SafeCond(&my_lock, &my_cond, &done, &r);
+
+  string rs;
+  ctx->mc.start_mon_command(cmd, bl, &rbl, &rs, onfinish);
+
+  my_lock.Lock();
+  while (!done)
+    my_cond.Wait(my_lock);
+  my_lock.Unlock();
+
+  cout << rs << std::endl;
+  return r;
+}
+
+int do_command2(CephToolCtx *ctx,
+	       vector<string>& cmd, bufferlist& bl, bufferlist& rbl)
+{
+  Mutex::Locker l(ctx->lock);
+
   pending_target = EntityName();
   pending_cmd = cmd;
   pending_bl = bl;
