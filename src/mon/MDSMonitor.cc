@@ -580,19 +580,16 @@ bool MDSMonitor::preprocess_command(MMonCommand *m)
       }
       if (p) {
 	stringstream ds;
-	if (format == "json") {
-	  JSONFormatter jf(true);
-	  jf.open_object_section("mdsmap");
-	  p->dump(&jf);
-	  jf.close_section();
-	  jf.flush(ds);
-	  r = 0;
-	} else if (format == "plain") {
-	  p->print(ds);
+	Formatter *f = new_formatter(format);
+	if (f != NULL) {
+	  f->open_object_section("mdsmap");
+	  p->dump(f);
+	  f->close_section();
+	  f->flush(ds);
 	  r = 0;
 	} else {
-	  ss << "unrecognized format '" << format << "'";
-	  r = -EINVAL;
+	  p->print(ds);
+	  r = 0;
 	}
 	if (r == 0) {
 	  rdata.append(ds);

@@ -2453,7 +2453,6 @@ void Monitor::handle_command(MMonCommand *m)
       args.push_back(m->cmd[i].c_str());
 
     string format = "plain";
-    JSONFormatter *jf = NULL;
     for (vector<const char*>::iterator i = args.begin(); i != args.end();) {
       string val;
       if (ceph_argparse_witharg(args, i, &val,
@@ -2464,32 +2463,23 @@ void Monitor::handle_command(MMonCommand *m)
       }
     }
 
-    if (format != "plain") {
-      if (format == "json") {
-        jf = new JSONFormatter(true);
-      } else {
-        r = -EINVAL;
-        stringstream err_ss;
-        err_ss << "unrecognized format '" << format
-          << "' (available: plain, json)";
-        rs = err_ss.str();
-        goto out;
-      }
-    }
+    Formatter *f = new_formatter(format);
 
     stringstream ss;
     if (string(args[0]) == "status") {
-      get_status(ss, jf);
+      // get_status handles f == NULL
+      get_status(ss, f);
 
-      if (jf) {
-        jf->flush(ss);
+      if (f) {
+        f->flush(ss);
         ss << '\n';
       }
     } else if (string(args[0]) == "health") {
       string health_str;
-      get_health(health_str, (args.size() > 1) ? &rdata : NULL, jf);
-      if (jf) {
-        jf->flush(ss);
+      // as does get_health
+      get_health(health_str, (args.size() > 1) ? &rdata : NULL, f);
+      if (f) {
+        f->flush(ss);
         ss << '\n';
       } else {
         ss << health_str;
@@ -2518,9 +2508,11 @@ void Monitor::handle_command(MMonCommand *m)
       }
     } else {
       assert(0 == "We should never get here!");
+      delete f;
       return;
     }
     rs = ss.str();
+    delete f;
     r = 0;
   } else if (m->cmd[0] == "report") {
     if (!access_r) {
@@ -2529,12 +2521,32 @@ void Monitor::handle_command(MMonCommand *m)
       goto out;
     }
 
-    JSONFormatter jf(true);
+    vector<const char *> args;
+    for (unsigned int i = 0; i < m->cmd.size(); ++i)
+      args.push_back(m->cmd[i].c_str());
 
-    jf.open_object_section("report");
-    jf.dump_string("version", ceph_version_to_str());
-    jf.dump_string("commit", git_version_to_str());
-    jf.dump_stream("timestamp") << ceph_clock_now(NULL);
+    string format = "json";
+    for (vector<const char*>::iterator i = args.begin(); i != args.end();) {
+      string val;
+      if (ceph_argparse_witharg(args, i, &val,
+            "-f", "--format", (char*)NULL)) {
+        format = val;
+      } else {
+        ++i;
+      }
+    }
+
+    Formatter *f = new_formatter(format);
+    if (f == NULL) {
+      rs = "invalid format " + format + " requested";
+      r = -EINVAL;
+      goto out;
+    }
+
+    f->open_object_section("report");
+    f->dump_string("version", ceph_version_to_str());
+    f->dump_string("commit", git_version_to_str());
+    f->dump_stream("timestamp") << ceph_clock_now(NULL);
 
     string d;
     for (unsigned i = 1; i < m->cmd.size(); i++) {
@@ -2542,19 +2554,19 @@ void Monitor::handle_command(MMonCommand *m)
         d += " ";
       d += m->cmd[i];
     }
-    jf.dump_string("tag", d);
+    f->dump_string("tag", d);
 
     string hs;
-    get_health(hs, NULL, &jf);
+    get_health(hs, NULL, f);
 
-    monmon()->dump_info(&jf);
-    osdmon()->dump_info(&jf);
-    mdsmon()->dump_info(&jf);
-    pgmon()->dump_info(&jf);
+    monmon()->dump_info(f);
+    osdmon()->dump_info(f);
+    mdsmon()->dump_info(f);
+    pgmon()->dump_info(f);
 
-    jf.close_section();
+    f->close_section();
     stringstream ss;
-    jf.flush(ss);
+    f->flush(ss);
 
     bufferlist bl;
     bl.append("-------- BEGIN REPORT --------\n");

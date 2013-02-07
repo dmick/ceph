@@ -251,8 +251,8 @@ bool MonmapMonitor::preprocess_command(MMonCommand *m)
       }
       if (p) {
 	stringstream ds;
-	if (format == "json") {
-	  Formatter *f = new JSONFormatter(true);
+	Formatter *f = new_formatter(format);
+	if (f) {
 	  f->open_object_section("monmap");
 	  p->dump(f);
 	  f->open_array_section("quorum");
@@ -263,12 +263,9 @@ bool MonmapMonitor::preprocess_command(MMonCommand *m)
 	  f->flush(ds);
 	  delete f;
 	  r = 0;
-	} else if (format == "plain") {
+	} else {
 	  p->print(ds);
 	  r = 0;
-	} else {
-	  ss << "unrecognized format '" << format << "'";
-	  r = -EINVAL;
 	}
 	if (r == 0) {
 	  rdata.append(ds);

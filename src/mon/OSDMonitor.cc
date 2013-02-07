@@ -1840,18 +1840,18 @@ bool OSDMonitor::preprocess_command(MMonCommand *m)
 	  }
 	} else if (cmd == "ls") {
 	  stringstream ds;
-	  if (format == "json") {
-	    JSONFormatter jf(true);
-	    jf.open_array_section("osds");
+	  Formatter *f = new_formatter(format);
+	  if (f) {
+	    f->open_array_section("osds");
 	    for (int i = 0; i < osdmap.get_max_osd(); i++) {
 	      if (osdmap.exists(i)) {
-		jf.dump_int("osd", i);
+		f->dump_int("osd", i);
 	      }
 	    }
-	    jf.close_section();
-	    jf.flush(ds);
+	    f->close_section();
+	    f->flush(ds);
 	    r = 0;
-	  } else if (format == "plain") {
+	  } else {
 	    bool first = true;
 	    for (int i = 0; i < osdmap.get_max_osd(); i++) {
 	      if (osdmap.exists(i)) {
@@ -1862,29 +1862,23 @@ bool OSDMonitor::preprocess_command(MMonCommand *m)
 	      }
 	    }
 	    r = 0;
-	  } else {
-	    ss << "unrecognized format '" << format << "'";
-	    r = -EINVAL;
 	  }
 	  if (r == 0) {
 	    rdata.append(ds);
 	  }
 	} else if (cmd == "tree") {
 	  stringstream ds;
-	  if (format == "json") {
-	    JSONFormatter jf(true);
-	    jf.open_object_section("tree");
-	    p->print_tree(NULL, &jf);
-	    jf.close_section();
-	    jf.flush(ds);
-	    r = 0;
-	  } else if (format == "plain") {
-	    p->print_tree(&ds, NULL);
+	  Formatter *f = new_formatter(format);
+	  if (f) {
+	    f->open_object_section("tree");
+	    p->print_tree(NULL, f);
+	    f->close_section();
+	    f->flush(ds);
 	    r = 0;
 	  } else {
-	    ss << "unrecognized format '" << format << "'";
-	    r = -EINVAL;
-	  }
+	    p->print_tree(&ds, NULL);
+	    r = 0;
+	  } 
 	  if (r == 0) {
 	    rdata.append(ds);
 	  }

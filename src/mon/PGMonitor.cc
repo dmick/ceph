@@ -1608,10 +1608,10 @@ int PGMonitor::dump_stuck_pg_stats(ostream& ss,
   utime_t cutoff = now - utime_t(threshold, 0);
 
   stringstream ds;
-  if (format == "json") {
-    JSONFormatter jsf(true);
-    pg_map.dump_stuck(&jsf, stuck_type, cutoff);
-    jsf.flush(ds);
+  Formatter *f = new_formatter(format);
+  if (f) {
+    pg_map.dump_stuck(f, stuck_type, cutoff);
+    f->flush(ds);
   } else {
     pg_map.dump_stuck_plain(ds, stuck_type, cutoff);
   }
