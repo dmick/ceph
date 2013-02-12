@@ -524,7 +524,7 @@ bool MDSMonitor::preprocess_command(MMonCommand *m)
 {
   int r = -1;
   bufferlist rdata;
-  stringstream ss;
+  stringstream ss, ds;
 
   MonSession *session = m->get_session();
   if (!session ||
@@ -541,7 +541,7 @@ bool MDSMonitor::preprocess_command(MMonCommand *m)
 
   if (m->cmd.size() > 1) {
     if (m->cmd[1] == "stat") {
-      ss << mdsmap;
+      ds << mdsmap;
       r = 0;
     } 
     else if (m->cmd[1] == "dump") {
@@ -665,7 +665,7 @@ bool MDSMonitor::preprocess_command(MMonCommand *m)
     else if (m->cmd[1] == "compat") {
       if (m->cmd.size() >= 3) {
 	if (m->cmd[2] == "show") {
-	  ss << mdsmap.compat;
+	  ds << mdsmap.compat;
 	  r = 0;
 	} else if (m->cmd[2] == "help") {
 	  ss << "mds compat <rm_compat|rm_ro_compat|rm_incompat> <id>";
@@ -680,6 +680,7 @@ bool MDSMonitor::preprocess_command(MMonCommand *m)
 
  out:
   if (r != -1) {
+    rdata.append(ds);
     string rs;
     getline(ss, rs);
     mon->reply_command(m, r, rs, rdata, get_version());

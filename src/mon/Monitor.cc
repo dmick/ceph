@@ -2391,7 +2391,8 @@ void Monitor::handle_command(MMonCommand *m)
   if (m->cmd[0] == "fsid") {
     stringstream ss;
     ss << monmap->fsid;
-    reply_command(m, 0, ss.str(), rdata, 0);
+    rdata.append(ss);
+    reply_command(m, 0, "", rdata, 0);
     return;
   }
   if (m->cmd[0] == "log") {
@@ -2485,15 +2486,22 @@ void Monitor::handle_command(MMonCommand *m)
         jf->flush(ss);
         ss << '\n';
       }
+      rdata.append(ss);
     } else if (string(args[0]) == "health") {
       string health_str;
-      get_health(health_str, (args.size() > 1) ? &rdata : NULL, jf);
+      bool detail = (args.size() > 1 && args[1] == "detail");
+      get_health(health_str, detail ? &rdata : NULL, jf);
       if (jf) {
         jf->flush(ss);
         ss << '\n';
       } else {
-        ss << health_str;
+        ss << health_str << '\n';
       }
+      bufferlist comb;
+      comb.append(ss);
+      if (detail)
+	comb.append(rdata);
+      rdata = comb;
     } else if (string(args[0]) == "df") {
       if (args.size() > 1) {
         if (string(args[1]) != "detail") {
@@ -2502,7 +2510,7 @@ void Monitor::handle_command(MMonCommand *m)
           goto out;
         }
       }
-      bool verbose = (args.size() > 1);
+      bool detail = (args.size() > 1);
       if (jf)
         jf->open_object_section("stats");
 
@@ -2516,11 +2524,16 @@ void Monitor::handle_command(MMonCommand *m)
         jf->flush(ss);
         ss << '\n';
       }
+      bufferlist comb;
+      comb.append(ss);
+      if (detail)
+	comb.append(rdata);
+      rdata = comb;
     } else {
       assert(0 == "We should never get here!");
       return;
     }
-    rs = ss.str();
+    rs.clear();
     r = 0;
   } else if (m->cmd[0] == "report") {
     if (!access_r) {
@@ -2563,7 +2576,7 @@ void Monitor::handle_command(MMonCommand *m)
     ss2 << "\n-------- END REPORT " << bl.crc32c(6789) << " --------\n";
     rdata.append(bl);
     rdata.append(ss2.str());
-    rs = string();
+    rs.clear();
     r = 0;
   } else if (m->cmd[0] == "quorum_status") {
     if (!access_r) {
@@ -2579,7 +2592,8 @@ void Monitor::handle_command(MMonCommand *m)
     }
     stringstream ss;
     _quorum_status(ss);
-    rs = ss.str();
+    rdata.append(ss);
+    rs.clear();
     r = 0;
   } else if (m->cmd[0] == "mon_status") {
     if (!access_r) {
@@ -2589,7 +2603,8 @@ void Monitor::handle_command(MMonCommand *m)
     }
     stringstream ss;
     _mon_status(ss);
-    rs = ss.str();
+    rdata.append(ss);
+    rs.clear();
     r = 0;
   } else if (m->cmd[0] == "sync") {
       if (!access_r) {
@@ -2629,9 +2644,13 @@ void Monitor::handle_command(MMonCommand *m)
     if (!ceph_using_tcmalloc())
       rs = "tcmalloc not enabled, can't use heap profiler commands\n";
     else {
-      ostringstream ss;
+      stringstream ss;
+      rs.clear();
+      r = 0;
+      // this can't "fail" in the normal sense, although its output may
+      // be error message rather than payload
       ceph_heap_profiler_handle_command(m->cmd, ss);
-      rs = ss.str();
+      rdata.append(ss);
     }
   } else if (m->cmd[0] == "quorum") {
     if (!access_all) {
@@ -3959,9 +3978,9 @@ bool Monitor::ms_get_authorizer(int service_id, AuthAuthorizer **authorizer, boo
   if (!keyring.get_secret(name, secret) &&
       !key_server.get_secret(name, secret)) {
     dout(0) << " couldn't get secret for mon service from keyring or keyserver" << dendl;
-    stringstream ss;
-    key_server.list_secrets(ss);
-    dout(0) << ss.str() << dendl;
+    stringstream ss, ds;
+    key_server.list_secrets(ss, ds);
+    dout(0) << ss.str() << ds.str() << dendl;
     return false;
   }
 

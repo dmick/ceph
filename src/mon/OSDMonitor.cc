@@ -1761,7 +1761,7 @@ bool OSDMonitor::preprocess_command(MMonCommand *m)
 {
   int r = -1;
   bufferlist rdata;
-  stringstream ss;
+  stringstream ss, ds;
 
   MonSession *session = m->get_session();
   if (!session ||
@@ -1836,7 +1836,7 @@ bool OSDMonitor::preprocess_command(MMonCommand *m)
 	  if (r == 0) {
 	    rdata.append(ds);
             if (format != "json")
-              ss << " ";
+              ds << " ";
 	  }
 	} else if (cmd == "ls") {
 	  stringstream ds;
@@ -1902,7 +1902,7 @@ bool OSDMonitor::preprocess_command(MMonCommand *m)
       }
     }
     else if (m->cmd[1] == "getmaxosd") {
-      ss << "max_osd = " << osdmap.get_max_osd() << " in epoch " << osdmap.get_epoch();
+      ds << "max_osd = " << osdmap.get_max_osd() << " in epoch " << osdmap.get_epoch();
       r = 0;
     }
     else if (m->cmd[1] == "tell") {
@@ -1982,7 +1982,7 @@ bool OSDMonitor::preprocess_command(MMonCommand *m)
 	pg_t mpgid = osdmap.raw_pg_to_pg(pgid);
 	vector<int> up, acting;
 	osdmap.pg_to_up_acting_osds(mpgid, up, acting);
-	ss << "osdmap e" << osdmap.get_epoch()
+	ds << "osdmap e" << osdmap.get_epoch()
 	   << " pool '" << m->cmd[2] << "' (" << pool << ") object '" << oid << "' ->"
 	   << " pg " << pgid << " (" << mpgid << ")"
 	   << " -> up " << up << " acting " << acting;
@@ -2035,7 +2035,7 @@ bool OSDMonitor::preprocess_command(MMonCommand *m)
 	   p != osdmap.pools.end();
 	   ++p) {
 	if (!uid_pools || p->second.auid == uid_pools) {
-	  ss << p->first << ' ' << osdmap.pool_name[p->first] << ',';
+	  ds << p->first << ' ' << osdmap.pool_name[p->first] << ',';
 	}
       }
       r = 0;
@@ -2092,6 +2092,7 @@ bool OSDMonitor::preprocess_command(MMonCommand *m)
  out:
   if (r != -1) {
     string rs;
+    rdata.append(ds);
     getline(ss, rs);
     mon->reply_command(m, r, rs, rdata, get_version());
     return true;
@@ -2213,7 +2214,7 @@ void OSDMonitor::parse_loc_map(const vector<string>& args, int start, map<string
 bool OSDMonitor::prepare_command(MMonCommand *m)
 {
   bool ret = false;
-  stringstream ss;
+  stringstream ss, ds;
   string rs;
   int err = -EINVAL;
 
@@ -2795,8 +2796,8 @@ bool OSDMonitor::prepare_command(MMonCommand *m)
 	if (i >= 0) {
 	  // osd already exists
 	  err = 0;
-	  ss << i;
-	  getline(ss, rs);
+	  ds << i;
+	  rs.clear();
 	  goto out;
 	}
 	i = pending_inc.identify_osd(uuid);
@@ -2828,9 +2829,11 @@ bool OSDMonitor::prepare_command(MMonCommand *m)
       pending_inc.new_state[i] |= CEPH_OSD_EXISTS | CEPH_OSD_NEW;
       if (!uuid.is_zero())
 	pending_inc.new_uuid[i] = uuid;
-      ss << i;
+      ds << i;
+      bufferlist rdata;
+      rdata.append(ds);
       getline(ss, rs);
-      wait_for_finished_proposal(new Monitor::C_Command(mon, m, 0, rs, get_version()));
+      wait_for_finished_proposal(new Monitor::C_Command(mon, m, 0, rs, rdata, get_version()));
       return true;
     }
     else if (m->cmd[1] == "rm" && m->cmd.size() >= 3) {
@@ -3251,10 +3254,16 @@ bool OSDMonitor::prepare_command(MMonCommand *m)
     ss << "no command?";
   }
 out:
+  bufferlist rdata;
+  rdata.append(ds);
   getline(ss, rs);
   if (err < 0 && rs.length() == 0)
     rs = cpp_strerror(err);
+<<<<<<< HEAD
   mon->reply_command(m, err, rs, get_version());
+=======
+  mon->reply_command(m, err, rs, rdata, paxos->get_version());
+>>>>>>> Monitor: make all commands be careful about stdout vs stderr
   return ret;
 }
 

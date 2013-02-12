@@ -188,7 +188,7 @@ bool MonmapMonitor::preprocess_command(MMonCommand *m)
 {
   int r = -1;
   bufferlist rdata;
-  stringstream ss;
+  stringstream ss, ds;
 
   MonSession *session = m->get_session();
   if (!session ||
@@ -208,6 +208,8 @@ bool MonmapMonitor::preprocess_command(MMonCommand *m)
       mon->monmap->print_summary(ss);
       ss << ", election epoch " << mon->get_epoch() << ", quorum " << mon->get_quorum()
 	 << " " << mon->get_quorum_names();
+      rdata.append(ss);
+      ss.str("");
       r = 0;
     }
     else if (m->cmd.size() == 2 && m->cmd[1] == "getmap") {

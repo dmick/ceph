@@ -361,6 +361,7 @@ int main(int argc, const char **argv)
     int err;
     if (out_file.empty() || out_file == "-") {
       err = outbl.write_fd(STDOUT_FILENO);
+      cout << std::endl;
     } else {
       int out_fd = TEMP_FAILURE_RETRY(::open(out_file.c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0644));
       if (out_fd < 0) {

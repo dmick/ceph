@@ -295,9 +295,9 @@ int do_command(CephToolCtx *ctx,
 	   << reply_rs << "' (" << reply_rc << ")"
 	   << std::endl;
   else {
-    if (reply_rc >= 0)
-      cout << reply_rs << std::endl;
-    else
+    if (reply_rc < 0)
+      cerr << "error: " << cpp_strerror(reply_rc) << " " << reply_rs << std::endl;
+    else if (!reply_rs.empty())
       cerr << reply_rs << std::endl;
   }
 
@@ -310,6 +310,7 @@ void do_status(CephToolCtx *ctx, bool shutdown) {
   bufferlist bl;
 
   do_command(ctx, cmd, bl, bl);
+  ::write(1, bl.c_str(), bl.length() + 1);
 
   if (shutdown)
     messenger->shutdown();
