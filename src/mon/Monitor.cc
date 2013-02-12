@@ -2486,8 +2486,9 @@ void Monitor::handle_command(MMonCommand *m)
         ss << '\n';
       }
     } else if (string(args[0]) == "health") {
+      bool detail = args.size() > 1 && string(args[1]) == "detail";
       string health_str;
-      get_health(health_str, (args.size() > 1) ? &rdata : NULL, jf);
+      get_health(health_str, detail ? &rdata : NULL, jf);
       if (jf) {
         jf->flush(ss);
         ss << '\n';
