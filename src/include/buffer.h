@@ -398,8 +398,9 @@ public:
     void append(const ptr& bp, unsigned off, unsigned len);
     void append(const list& bl);
     void append(std::istream& in);
+    void append(std::stringstream& ss);
+
     void append_zero(unsigned len);
-    
     /*
      * get a char
      */
