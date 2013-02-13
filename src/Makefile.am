@@ -105,7 +105,7 @@ ceph_SOURCES = \
 	tools/ceph.cc \
 	tools/common.cc \
 	mon/PGMap.cc
-ceph_LDADD = $(LIBGLOBAL_LDA) $(LIBEDIT_LIBS)
+ceph_LDADD = $(LIBGLOBAL_LDA) $(LIBEDIT_LIBS) libosdc.la
 ceph_CXXFLAGS = ${AM_CXXFLAGS}
 
 ceph_conf_SOURCES = ceph_conf.cc

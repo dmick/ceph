@@ -39,6 +39,8 @@ extern "C" {
 #include "msg/SimpleMessenger.h"
 #include "tools/common.h"
 
+#include "osdc/Objecter.h"
+
 #include "common/errno.h"
 #include "common/Cond.h"
 #include "common/Mutex.h"
@@ -73,6 +75,8 @@ bufferlist reply_bl;
 entity_inst_t reply_from;
 
 OSDMap *osdmap = 0;
+OSDMap static_osdmap;
+Objecter *objecter = 0;
 
 Connection *command_con = NULL;
 Context *tick_event = 0;
@@ -251,7 +255,10 @@ static void handle_ack(CephToolCtx *ctx, MCommandReply *ack)
 int do_command(CephToolCtx *ctx,
 	       vector<string>& cmd, bufferlist& bl, bufferlist& rbl)
 {
+  objecter = new Objecter(ctx->cct, messenger, &ctx->mc, &static_osdmap, ctx->lock, ctx->timer);
+  objecter->init_unlocked();
   Mutex::Locker l(ctx->lock);
+  objecter->init_locked();
 
   Cond my_cond;
   Mutex my_lock("cephtool::my_lock");
@@ -260,7 +267,42 @@ int do_command(CephToolCtx *ctx,
   C_SafeCond *onfinish = new C_SafeCond(&my_lock, &my_cond, &done, &r);
 
   string rs;
-  ctx->mc.start_mon_command(cmd, bl, &rbl, &rs, onfinish);
+
+  bool mon = true;
+  if (cmd.size() > 0 && cmd[0] == "tell") {
+    if (cmd.size() == 1) {
+      cerr << "no tell target specified" << std::endl;
+      return -EINVAL;
+    }
+    if (!pending_target.from_str(cmd[1])) {
+      cerr << "tell target '" << cmd[1] << "' not a valid entity name" << std::endl;
+      return -EINVAL;
+    }
+
+    if (pending_target.get_type() == (int)entity_name_t::TYPE_OSD) {
+      cmd.erase(cmd.begin(), cmd.begin() + 2);
+      const char *start = pending_target.get_id().c_str();
+      char *end;
+      int n = strtoll(start, &end, 10);
+      objecter->osd_command(n, cmd, bl, &rbl, &rs, onfinish);
+      mon = false;
+    }
+  }
+  else if (cmd.size() > 0 && cmd[0] == "pg") {
+    if (cmd.size() == 1) {
+      cerr << "pg requires at least one argument" << std::endl;
+      return -EINVAL;
+    }
+    if (pending_target_pgid.parse(cmd[1].c_str())) {
+      //cmd.erase(cmd.begin(), cmd.begin() + 2);
+      objecter->pg_command(pending_target_pgid, cmd, bl, &rbl, &rs, onfinish);
+      mon = false;
+    }
+    // otherwise, send the request on to the monitor (e.g., 'pg dump').  sigh.
+  }
+  if (mon) {
+    ctx->mc.start_mon_command(cmd, bl, &rbl, &rs, onfinish);
+  }
 
   my_lock.Lock();
   while (!done)
@@ -580,13 +622,15 @@ bool Admin::ms_dispatch(Message *m) {
     handle_ack(ctx, (MMonCommandAck*)m);
     break;
   case MSG_COMMAND_REPLY:
-    handle_ack(ctx, (MCommandReply*)m);
+    //handle_ack(ctx, (MCommandReply*)m);
+    objecter->handle_command_reply((MCommandReply*)m);
     break;
   case CEPH_MSG_MON_MAP:
     m->put();
     break;
   case CEPH_MSG_OSD_MAP:
-    handle_osd_map(ctx, (MOSDMap *)m);
+    //handle_osd_map(ctx, (MOSDMap *)m);
+    objecter->handle_osd_map((MOSDMap*)m);
     break;
   case MSG_LOG:
    {
