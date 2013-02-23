@@ -1215,6 +1215,22 @@ public:
   friend class PGMonitor;
   friend class LogMonitor;
 
+  struct CommandRegistryEntry {
+    list<string> descriptors;	// list of JSON-encoded command descriptors
+    PaxosService *handler;	// *Monitor that will handle command
+				// 	(by convention in its
+				// 	"handle_parsed_command" method)
+    CommandRegistryEntry():descriptors(), handler(NULL) {}
+    CommandRegistryEntry(list<string>d, PaxosService *h):
+			 descriptors(d), handler(h) {}
+  };
+
+  /**
+   * List of command descriptors, added to by each service "subclass"
+   * to register the commands they handle.
+   */
+
+  std::list<CommandRegistryEntry *> command_handlers;
 
   // -- sessions --
   MonSessionMap session_map;

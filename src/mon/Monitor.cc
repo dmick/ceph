@@ -73,6 +73,7 @@
 #include "auth/KeyRing.h"
 
 #include "common/config.h"
+#include "common/cmdparse.h"
 #include "include/assert.h"
 
 #define dout_subsys ceph_subsys_mon
@@ -2335,6 +2336,76 @@ void Monitor::get_status(stringstream &ss, Formatter *f)
   }
 }
 
+static void
+dump_sig_to_json(Formatter *f, const char *sig)
+{
+  std::string word;
+
+  // put whole command signature in an already-opened container
+  // elements are: "name", meaning "the typeless name that means a literal"
+  // an object {} with key:value pairs representing an argument
+
+  int argnum = 0;
+  stringstream ss(sig);
+  while (std::getline(ss, word, ' ')) {
+    argnum++;
+    // if no , or =, must be a plain word to put out
+    if (word.find_first_of(",=") == string::npos) {
+      f->dump_string("arg", word);
+      continue;
+    }
+    // snarf up all the key=val,key=val pairs, put 'em in a dict
+    std::stringstream argdesc(word);
+    std::string t, name;
+    std::map<std::string, std::string>desckv;
+    // accumulate descriptor keywords in desckv
+    while (std::getline(argdesc, t, ',')) {
+      size_t pos;
+      // key=value or key[:True] (the :True is implied)
+      // name="name" means arg dict will be titled 'name'
+      pos = t.find('=');
+      std::string key, val;
+      if (pos != std::string::npos) {
+	key = t.substr(0, pos);
+	val = t.substr(pos+1);
+      } else {
+        key = t;
+        val = "true";
+      }
+      desckv.insert(std::pair<std::string, std::string> (key, val));
+    }
+    // name the array based on the name key
+    f->open_object_section(desckv["name"].c_str());
+    // dump all the keys including name into the array
+    for (std::map<std::string, std::string>::iterator it = desckv.begin();
+	 it != desckv.end(); it++) {
+      f->dump_string(it->first.c_str(), it->second);
+    }
+    f->close_section(); // attribute map for desc item
+  }
+}
+
+#define ARRAY_SIZE(a)	(sizeof(a) / sizeof(*a))
+
+// "include-me-twice-with-different-definitions-to-extract-fields" trick
+// glue module and parsesig together for JSON down to argparser
+#undef COMMAND
+static const char *mon_command_strings[] = {
+#define COMMAND(module, parsesig, op) module " " parsesig,
+#include <mon/MonCommands.h>
+};
+
+struct MonCommandOpcodes {
+  const char *module;
+  int opcode;
+};
+
+#undef COMMAND
+static MonCommandOpcodes opcodes[] = {
+#define COMMAND(module, parsesig, op) { module, op },
+#include <mon/MonCommands.h>
+};
+
 void Monitor::handle_command(MMonCommand *m)
 {
   if (m->fsid != monmap->fsid) {
@@ -2350,10 +2421,43 @@ void Monitor::handle_command(MMonCommand *m)
     return;
   }
 
+  if (m->cmd[0] == "get_command_descriptions") {
+    int cmdnum = 0;
+    ostringstream opcode;
+    JSONFormatter *f = new JSONFormatter();
+    f->open_object_section("command_descriptions");
+    for (const char **s = mon_command_strings;
+	 s < &mon_command_strings[ARRAY_SIZE(mon_command_strings)]; s++) {
+
+      opcode.str("");
+      opcode << ++cmdnum;
+      f->open_array_section(opcode.str().c_str());
+      dump_sig_to_json(f, *s);
+      f->close_section(); // operation
+    }
+    f->close_section();	// command_descriptions
+
+    stringstream ds, ss;
+    bufferlist rdata;
+    f->flush(ds);
+    delete f;
+    rdata.append(ds);
+    //ss << "dumped command descriptions";
+    //reply_command(m, 0, ss.str(), rdata, 0);
+    reply_command(m, 0, "", rdata, 0);
+  }
+
   bool access_cmd = _allowed_command(session, m->cmd);
   bool access_r = (session->caps.check_privileges(PAXOS_MONMAP, MON_CAP_R) ||
 		   access_cmd);
   bool access_all = (session->caps.get_allow_all() || access_cmd);
+
+  string fullcmd;
+  string module;
+  string err;
+  map<string, cmd_vartype> cmdmap;
+  int opcode;
+  stringstream ss;
 
   dout(0) << "handle_command " << *m << dendl;
   bufferlist rdata;
@@ -2363,19 +2467,40 @@ void Monitor::handle_command(MMonCommand *m)
   if (m->cmd.empty())
     goto out;
 
-  if (m->cmd[0] == "mds") {
+  // First, join all cmd strings
+  for (vector<string>::iterator it = m->cmd.begin();
+       it != m->cmd.end(); it++)
+    fullcmd += *it;
+  if (!cmdmap_from_json(fullcmd, &cmdmap, ss)) {
+    // ss has reason for failure
+    r = -EINVAL;
+    string rs = ss.str();
+    goto out;
+  }
+
+  opcode = getval("opcode", uint64_t);
+  for (MonCommandOpcodes *op = opcodes; op < &opcodes[ARRAY_SIZE(opcodes)];
+       op++) {
+    if (opcode == op->opcode) {
+      module = op->module;
+      break;
+    }
+  }
+
+  if (module == "mds" || m->cmd[0] == "mds") {
     mdsmon()->dispatch(m);
     return;
   }
-  if (m->cmd[0] == "osd") {
+  if (module == "osd" || m->cmd[0] == "osd") {
     osdmon()->dispatch(m);
     return;
   }
-  if (m->cmd[0] == "pg") {
+
+  if (module == "pg" || m->cmd[0] == "pg") {
     pgmon()->dispatch(m);
     return;
   }
-  if (m->cmd[0] == "mon") {
+  if (module == "mon" || m->cmd[0] == "mon") {
     monmon()->dispatch(m);
     return;
   }
@@ -2383,10 +2508,12 @@ void Monitor::handle_command(MMonCommand *m)
     reply_command(m, -EINVAL, "class distribution is no longer handled by the monitor", 0);
     return;
   }
-  if (m->cmd[0] == "auth") {
+  if (module == "auth" || m->cmd[0] == "auth") {
     authmon()->dispatch(m);
     return;
   }
+
+  // XXX these have no module string?...
 
   if (m->cmd[0] == "fsid") {
     stringstream ss;

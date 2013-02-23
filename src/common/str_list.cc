@@ -72,7 +72,7 @@ void get_str_list(const std::string& str, std::list<string>& str_list)
   return get_str_list(str, delims, str_list);
 }
 
-void get_str_set(const std::string& str, std::set<std::string>& str_set)
+void get_str_set(const std::string& str, const char *delims, std::set<std::string>& str_set)
 {
   size_t pos = 0;
   string token;
@@ -80,10 +80,16 @@ void get_str_set(const std::string& str, std::set<std::string>& str_set)
   str_set.clear();
 
   while (pos < str.size()) {
-    if (get_next_token(str, pos, token)) {
+    if (get_next_token(str, pos, delims, token)) {
       if (token.size() > 0) {
         str_set.insert(token);
       }
     }
   }
+}
+
+void get_str_set(const std::string& str, std::set<std::string>& str_set)
+{
+  const char *delims = ";,= \t";
+  return get_str_set(str, delims, str_set);
 }
