@@ -2471,19 +2471,25 @@ void Monitor::handle_command(MMonCommand *m)
   for (vector<string>::iterator it = m->cmd.begin();
        it != m->cmd.end(); it++)
     fullcmd += *it;
+#if 0
   if (!cmdmap_from_json(fullcmd, &cmdmap, ss)) {
     // ss has reason for failure
     r = -EINVAL;
     string rs = ss.str();
     goto out;
   }
+#else
+  // XXX allow failure for now
+  if (cmdmap_from_json(fullcmd, &cmdmap, ss)) {
+#endif
 
-  opcode = getval("opcode", uint64_t);
-  for (MonCommandOpcodes *op = opcodes; op < &opcodes[ARRAY_SIZE(opcodes)];
-       op++) {
-    if (opcode == op->opcode) {
-      module = op->module;
-      break;
+    opcode = getval("opcode", uint64_t);
+    for (MonCommandOpcodes *op = opcodes; op < &opcodes[ARRAY_SIZE(opcodes)];
+	 op++) {
+      if (opcode == op->opcode) {
+	module = op->module;
+	break;
+      }
     }
   }
 
