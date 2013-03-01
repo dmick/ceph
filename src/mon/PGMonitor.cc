@@ -1608,9 +1608,9 @@ int PGMonitor::dump_stuck_pg_stats(ostream& ss,
   utime_t cutoff = now - utime_t(threshold, 0);
 
   stringstream ds;
-  Formatter *f = new_formatter(format);
+  boost::scoped_ptr<Formatter> f(new_formatter(format));
   if (f) {
-    pg_map.dump_stuck(f, stuck_type, cutoff);
+    pg_map.dump_stuck(f.get(), stuck_type, cutoff);
     f->flush(ds);
   } else {
     pg_map.dump_stuck_plain(ds, stuck_type, cutoff);

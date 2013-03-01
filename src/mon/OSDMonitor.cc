@@ -1840,7 +1840,7 @@ bool OSDMonitor::preprocess_command(MMonCommand *m)
 	  }
 	} else if (cmd == "ls") {
 	  stringstream ds;
-	  Formatter *f = new_formatter(format);
+	  boost::scoped_ptr<Formatter> f(new_formatter(format));
 	  if (f) {
 	    f->open_array_section("osds");
 	    for (int i = 0; i < osdmap.get_max_osd(); i++) {
@@ -1868,10 +1868,10 @@ bool OSDMonitor::preprocess_command(MMonCommand *m)
 	  }
 	} else if (cmd == "tree") {
 	  stringstream ds;
-	  Formatter *f = new_formatter(format);
+	  boost::scoped_ptr<Formatter> f(new_formatter(format));
 	  if (f) {
 	    f->open_object_section("tree");
-	    p->print_tree(NULL, f);
+	    p->print_tree(NULL, f.get());
 	    f->close_section();
 	    f->flush(ds);
 	    r = 0;

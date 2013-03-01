@@ -2463,12 +2463,12 @@ void Monitor::handle_command(MMonCommand *m)
       }
     }
 
-    Formatter *f = new_formatter(format);
+    boost::scoped_ptr<Formatter> f(new_formatter(format));
 
     stringstream ss;
     if (string(args[0]) == "status") {
       // get_status handles f == NULL
-      get_status(ss, f);
+      get_status(ss, f.get());
 
       if (f) {
         f->flush(ss);
@@ -2477,7 +2477,7 @@ void Monitor::handle_command(MMonCommand *m)
     } else if (string(args[0]) == "health") {
       string health_str;
       // as does get_health
-      get_health(health_str, (args.size() > 1) ? &rdata : NULL, f);
+      get_health(health_str, (args.size() > 1) ? &rdata : NULL, f.get());
       if (f) {
         f->flush(ss);
         ss << '\n';
@@ -2508,11 +2508,9 @@ void Monitor::handle_command(MMonCommand *m)
       }
     } else {
       assert(0 == "We should never get here!");
-      delete f;
       return;
     }
     rs = ss.str();
-    delete f;
     r = 0;
   } else if (m->cmd[0] == "report") {
     if (!access_r) {
@@ -2536,7 +2534,7 @@ void Monitor::handle_command(MMonCommand *m)
       }
     }
 
-    Formatter *f = new_formatter(format);
+    boost::scoped_ptr<Formatter> f(new_formatter(format));
     if (f == NULL) {
       rs = "invalid format " + format + " requested";
       r = -EINVAL;
@@ -2557,12 +2555,12 @@ void Monitor::handle_command(MMonCommand *m)
     f->dump_string("tag", d);
 
     string hs;
-    get_health(hs, NULL, f);
+    get_health(hs, NULL, f.get());
 
-    monmon()->dump_info(f);
-    osdmon()->dump_info(f);
-    mdsmon()->dump_info(f);
-    pgmon()->dump_info(f);
+    monmon()->dump_info(f.get());
+    osdmon()->dump_info(f.get());
+    mdsmon()->dump_info(f.get());
+    pgmon()->dump_info(f.get());
 
     f->close_section();
     stringstream ss;

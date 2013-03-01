@@ -580,10 +580,10 @@ bool MDSMonitor::preprocess_command(MMonCommand *m)
       }
       if (p) {
 	stringstream ds;
-	Formatter *f = new_formatter(format);
+	boost::scoped_ptr<Formatter> f(new_formatter(format));
 	if (f != NULL) {
 	  f->open_object_section("mdsmap");
-	  p->dump(f);
+	  p->dump(f.get());
 	  f->close_section();
 	  f->flush(ds);
 	  r = 0;
