@@ -35,6 +35,7 @@ class Formatter {
   virtual void write_raw_data(const char *data) = 0;
 };
 
+Formatter *new_formatter(std::string &type);
 
 class JSONFormatter : public Formatter {
  public:
