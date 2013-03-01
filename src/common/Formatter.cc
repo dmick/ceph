@@ -51,6 +51,7 @@ new_formatter(std::string &type)
     else
       return (Formatter *)NULL;
 }
+
 // -----------------------
 JSONFormatter::JSONFormatter(bool p)
   : m_pretty(p), m_is_pending_string(false)
@@ -334,7 +335,6 @@ void XMLFormatter::dump_string(const char *name, std::string s)
 
 std::ostream& XMLFormatter::dump_stream(const char *name)
 {
-  assert(m_pending_string_name.empty());
   print_spaces();
   m_pending_string_name = name;
   m_ss << "<" << m_pending_string_name << ">";
