@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <limits.h>
+#include <cstring>
 
 #include "Monitor.h"
 #include "common/version.h"
@@ -2336,17 +2337,39 @@ void Monitor::get_status(stringstream &ss, Formatter *f)
   }
 }
 
+/**
+ * read a signature description out of sig, and dump it to f.
+ * a signature description is a set of space-separated words; each
+ * word is either:
+ * - a plain word, in which case it must be present literally, or
+ * - a list of comma-separated key=val parameters describing the command
+ *   if value needs a space or comma, quote the whole value with "
+ *
+ *   Common keys:
+ *   type={CephInt, CephFloat, CephString, CephHelp, CephSocketpath,
+ *         CephIPAddr, CephPoolname, CephObjectname, CephPgid, CephName,
+ *         CephChoices, CephFilepath, CephFragment, CephUUID}
+ *   name=argname (will come back in parsed command JSON)
+ *   req={true,false} is this parameter required
+ *   n=<number of this parameter required>  n/N means "1-N"
+ *
+ *   Type-specific keys:
+ *   CephInt/CephFloat: range={min} or range={min|max}
+ *   CephChoices: strings="s1|s2|s3" set of acceptable strings
+ *   		  (n=2 would mean "allow two repetitions from the set"
+ */
+
 static void
 dump_sig_to_json(Formatter *f, const char *sig)
 {
-  std::string word;
-
   // put whole command signature in an already-opened container
   // elements are: "name", meaning "the typeless name that means a literal"
   // an object {} with key:value pairs representing an argument
 
   int argnum = 0;
   stringstream ss(sig);
+  std::string word;
+
   while (std::getline(ss, word, ' ')) {
     argnum++;
     // if no , or =, must be a plain word to put out
@@ -2354,34 +2377,36 @@ dump_sig_to_json(Formatter *f, const char *sig)
       f->dump_string("arg", word);
       continue;
     }
-    // snarf up all the key=val,key=val pairs, put 'em in a dict
+    // Snarf up all the key=val,key=val pairs, put 'em in a dict.
+    // no '=val' implies '=True'.
     std::stringstream argdesc(word);
-    std::string t, name;
+    std::string keyval, name;
     std::map<std::string, std::string>desckv;
     // accumulate descriptor keywords in desckv
-    while (std::getline(argdesc, t, ',')) {
-      size_t pos;
-      // key=value or key[:True] (the :True is implied)
+    size_t pos;
+
+    while (std::getline(argdesc, keyval, ',')) {
+      // key=value; key by itself implies value is bool true
       // name="name" means arg dict will be titled 'name'
-      pos = t.find('=');
+      pos = keyval.find('=');
       std::string key, val;
       if (pos != std::string::npos) {
-	key = t.substr(0, pos);
-	val = t.substr(pos+1);
+	key = keyval.substr(0, pos);
+	val = keyval.substr(pos+1);
       } else {
-        key = t;
-        val = "true";
+        key = keyval;
+        val = true;
       }
       desckv.insert(std::pair<std::string, std::string> (key, val));
     }
-    // name the array based on the name key
+    // name the individual desc object based on the name key
     f->open_object_section(desckv["name"].c_str());
     // dump all the keys including name into the array
     for (std::map<std::string, std::string>::iterator it = desckv.begin();
 	 it != desckv.end(); it++) {
       f->dump_string(it->first.c_str(), it->second);
     }
-    f->close_section(); // attribute map for desc item
+    f->close_section(); // attribute object for individual desc
   }
 }
 
@@ -2390,8 +2415,12 @@ dump_sig_to_json(Formatter *f, const char *sig)
 // "include-me-twice-with-different-definitions-to-extract-fields" trick
 // glue module and parsesig together for JSON down to argparser
 #undef COMMAND
-static const char *mon_command_strings[] = {
-#define COMMAND(module, parsesig, op) module " " parsesig,
+struct MonCommand {
+  const char *cmdstring;
+  const char *helpstring;
+} mon_commands[] = {
+#define COMMAND(module, parsesig, op, helptext) \
+  {module " " parsesig, helptext}, 
 #include <mon/MonCommands.h>
 };
 
@@ -2402,7 +2431,7 @@ struct MonCommandOpcodes {
 
 #undef COMMAND
 static MonCommandOpcodes opcodes[] = {
-#define COMMAND(module, parsesig, op) { module, op },
+#define COMMAND(module, parsesig, op, helptext) { module, op },
 #include <mon/MonCommands.h>
 };
 
@@ -2426,14 +2455,17 @@ void Monitor::handle_command(MMonCommand *m)
     ostringstream opcode;
     JSONFormatter *f = new JSONFormatter();
     f->open_object_section("command_descriptions");
-    for (const char **s = mon_command_strings;
-	 s < &mon_command_strings[ARRAY_SIZE(mon_command_strings)]; s++) {
+    for (MonCommand *cp = mon_commands;
+	 cp < &mon_commands[ARRAY_SIZE(mon_commands)]; cp++) {
 
       opcode.str("");
       opcode << ++cmdnum;
-      f->open_array_section(opcode.str().c_str());
-      dump_sig_to_json(f, *s);
-      f->close_section(); // operation
+      f->open_object_section(opcode.str().c_str());
+      f->open_array_section("sig");
+      dump_sig_to_json(f, cp->cmdstring);
+      f->close_section();  // desc array
+      f->dump_string("help", string(cp->helpstring));
+      f->close_section(); // overall object
     }
     f->close_section();	// command_descriptions
 

@@ -7,7 +7,7 @@
 enum command_op {
 	  CMD_INVALID,          // skip 0
 #undef COMMAND
-#define COMMAND(module, parsesig, op) op,
+#define COMMAND(module, parsesig, op, helptext) op,
 #include <mon/MonCommands.h>
 };
 
