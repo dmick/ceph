@@ -682,8 +682,7 @@ def main():
 
     command = os.environ.get('COMMAND')
     if not command:
-        print >> sys.stderr, 'Must define $COMMAND'
-        return 1
+        command = "./ceph"
 
     # fetch JSON sigs from command
     # each line contains one command signature (a placeholder name
