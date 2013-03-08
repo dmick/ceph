@@ -5,21 +5,39 @@
 #include <map>
 #include <boost/variant.hpp>
 
-// generate the interesting enums by the "include-with-macro-selection" trick
-enum command_op {
-	  CMD_INVALID,          // skip 0
-#undef COMMAND
-#define COMMAND(module, parsesig, op, helptext) op,
-#include <mon/MonCommands.h>
-};
-
 typedef boost::variant<std::string, bool, int, uint64_t, double> cmd_vartype;
 
 bool cmdmap_from_json(std::string cmd, std::map<std::string, cmd_vartype> *mapp, std::stringstream &ss);
 
-// shorthand, assume cmdmap.  This is kind of ugly and
-// should probably be replaced with template functions
+template <typename T>
+bool
+getval(std::map<std::string, cmd_vartype>& cmdmap, std::string k, T& val)
+{
+  // referencing a nonexistent key creates it, even as an rvalue;
+  // we don't want that behavior for get.
+  if (cmdmap.count(k)) {
+    try {
+      val = boost::get<T>(cmdmap[k]);
+      return true;
+    } catch (boost::bad_get) { }
+  }
+  // either not found or bad type, return false
+  return false;
+}
 
-#define getval(k, t)	boost::get<t>(cmdmap[k])
-#define putval(k, t, v)	(cmdmap[k]) = t(v)
+// with default
+template <typename T>
+void
+getval(std::map<std::string, cmd_vartype>& cmdmap, std::string k, T& val,
+       T defval)
+{
+  if (!getval(cmdmap, k, val))
+    val = defval;
+}
 
+template <typename T>
+void
+putval(std::map<std::string, cmd_vartype>& cmdmap, std::string k, T val)
+{
+  cmdmap[k] = val;
+}

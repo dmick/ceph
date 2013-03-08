@@ -28,6 +28,12 @@ class ArgumentValidError(ArgumentError):
     pass
 
 """
+Special for mismatched prefix, to distinguish severity
+"""
+class ArgumentPrefixError(ArgumentError):
+    pass
+
+"""
 Base class for all Ceph argument types
 
 Instantiating an object sets any validation parameters 
@@ -391,6 +397,27 @@ class CephUUID(CephArgtype):
     def __str__(self):
         return '<uuid>'
 
+"""
+CephPrefix: magic type for "all the first n fixed strings"
+"""
+class CephPrefix(CephArgtype):
+    def __init__(self, prefix=''):
+        self.prefix = prefix
+
+    def valid(self, s, partial=False):
+        if partial:
+            if self.prefix.startswith(s):
+                self.val = s
+                return True
+        else:
+            if (s == self.prefix):
+                self.val = s
+                return True
+        raise ArgumentPrefixError("no match for {}".format(s))
+
+    def __str__(self):
+        return self.prefix
+
 ############################################################################
 
 # argdesc(typename, [type-specific kwargs], name='name', n=numallowed, req=False, helptext=helptext, **kwargs)
@@ -409,8 +436,8 @@ class CephUUID(CephArgtype):
 class argdesc(object):
     def __init__(self, t, name=None, n=1, req=True, **kwargs):
         if isinstance(t, types.StringTypes):
-            self.t = CephChoices
-            self.typeargs = dict({'strings':t})
+            self.t = CephPrefix
+            self.typeargs = {'prefix':t}
             self.req = True
         else:
             self.t = t
@@ -440,7 +467,8 @@ class argdesc(object):
         return r[:-2] + ')'
 
     def __str__(self):
-        if self.t == CephChoices and len(self.instance.strings) == 1:
+        if ((self.t == CephChoices and len(self.instance.strings) == 1)
+            or (self.t == CephPrefix)):
             s = '{}'.format(str(self.instance))
         else:
             s = '{}({})'.format(self.name, str(self.instance))
@@ -513,34 +541,33 @@ def parse_json_funcsig(s):
 
         newsig = []
         argnum = 0
-        for d in sig:
+        for desc in sig:
             argnum += 1
-            if isinstance(d, types.StringTypes):
-                t = d
-                name = '__opcode{}'.format(argnum)
-                d = {'type':t, 'name':name}
+            if isinstance(desc, types.StringTypes):
+                t = CephPrefix
+                desc = {'type':t, 'name':'prefix', 'prefix':desc}
             else:
-                if not 'type' in d:
-                    raise TypeError('JSON descriptor {} has no type'.format(sig))
+                # not a simple string, must be dict
+                if not 'type' in desc:
                 # look up type string in our globals() dict; if it's an
                 # object of type types.TypeType, it must be a
                 # locally-defined class. otherwise, we haven't a clue.
-                if d['type'] in globals():
-                    t = globals()[d['type']]
+                if desc['type'] in globals():
+                    t = globals()[desc['type']]
                     if type(t) != types.TypeType:
                         raise TypeError('unknown type {}'.format(d['type']))
                 else:
                     raise TypeError('no type found in {}'.format(d))
             kwargs = dict()
-            for key, val in d.items():
+            for key, val in desc.items():
                 if key not in ['type', 'name', 'n', 'req']:
                     kwargs[key] = val
             newsig.append(argdesc(t,
-                                  name=d.get('name', None),
-                                  n=d.get('n', 1),
-                                  req=d.get('req', True),
+                                  name=desc.get('name', None),
+                                  n=desc.get('n', 1),
+                                  req=desc.get('req', True),
                                   **kwargs))
-        sigdict[int(op)] = {'sig':newsig, 'helptext':helptext}
+        sigdict[cmdtag] = {'sig':newsig, 'helptext':helptext}
     return sigdict
 
 """
@@ -551,13 +578,15 @@ Raise exception if not.
 """
 def validate_one(word, desc, partial=False):
     # validate word against the constructed instance of the type
-    # in desc.  May raise exception.  If not, desc.instance.val will
+    # in desc.  May raise exception.  If it returns false (and doesn't
+    # raise an exception), desc.instance.val will
     # contain the validated value (in the appropriate type).
-    desc.instance.valid(word, partial)
-    desc.numseen += 1
-    if desc.N:
-        desc.n = desc.numseen + 1
-    return True
+    if desc.instance.valid(word, partial):
+        desc.numseen += 1
+        if desc.N:
+            desc.n = desc.numseen + 1
+        return True
+    return False
 
 """
 matchnum(s, signature, partial=False)
@@ -592,9 +621,9 @@ validate(s, signature)
 
 Assumes s represents a possible command input following format of
 signature.  Runs a validation; no exception means it's OK.  Return
-a dict containing all arguments except those named __opcode* 
-which is set when parsing JSON for a descriptor containing an otherwise- 
-unadorned string (i.e. the leading words on a command).
+a dict containing all arguments named by their descriptor name
+(with duplicate args per name accumulated into a space-separated
+value).
 """
 
 def validate(args, signature):
@@ -624,13 +653,8 @@ def validate(args, signature):
             else:
                 d[desc.name] = desc.instance.val
         argpos += 1
-    # strip out __opcode items
-    retd = {}
-    for k,v in d.items():
-        if not k.startswith('__opcode'):
-           retd[k] = v
-    print "validate returning", retd
-    return retd
+    # print "validate returning", d
+    return d
 
 # convenience function for testing
 
@@ -662,10 +686,9 @@ def main():
         return 1
 
     # fetch JSON sigs from command
-    # each line corresponds to the opcode that will be sent back
-    # as part of the validated argument JSON object; make sure
-    # the receiving code matches position in the command output
-    # with the opcode it expects to receive.
+    # each line contains one command signature (a placeholder name
+    # of the form 'cmdNNN' followed by an array of argument descriptors)
+    # as part of the validated argument JSON object
 
     outdata = get_process_output([command, 'get_command_descriptions'])
     sigdict = parse_json_funcsig(outdata.strip())
@@ -709,17 +732,19 @@ def main():
             bestsigs.append({op:sigandhelp})
 
     # for everything in bestsigs, look for a true match
-    for opsig in bestsigs:
-        for (op, sigandhelp) in opsig.iteritems():
+    for cmdsig in bestsigs:
+        for (cmdtag, sigandhelp) in cmdsig.iteritems():
             sig = sigandhelp['sig']
             try:
                 valid_dict = validate(parsed_args.args, sig)
-                valid_dict['opcode'] = op
                 found = sig
                 break
+            except ArgumentPrefixError:
+                # this is common, and we don't want to whine about it
+                pass
             except ArgumentError as e:
-                if parsed_args.verbose:
-                    print >> sys.stderr, "almost {}:\n** {}".format(concise_sig(sig), e)
+                print >> sys.stderr, "almost {}: {}:\n** {}". \
+                                     format(cmdtag, concise_sig(sig), e)
                 pass
     if not found:
         print >> sys.stderr, '{}: invalid command'.format(parsed_args.args)

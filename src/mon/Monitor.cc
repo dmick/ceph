@@ -2419,19 +2419,8 @@ struct MonCommand {
   const char *cmdstring;
   const char *helpstring;
 } mon_commands[] = {
-#define COMMAND(module, parsesig, op, helptext) \
-  {module " " parsesig, helptext}, 
-#include <mon/MonCommands.h>
-};
-
-struct MonCommandOpcodes {
-  const char *module;
-  int opcode;
-};
-
-#undef COMMAND
-static MonCommandOpcodes opcodes[] = {
-#define COMMAND(module, parsesig, op, helptext) { module, op },
+#define COMMAND(parsesig, helptext) \
+  {parsesig, helptext}, 
 #include <mon/MonCommands.h>
 };
 
@@ -2452,20 +2441,20 @@ void Monitor::handle_command(MMonCommand *m)
 
   if (m->cmd[0] == "get_command_descriptions") {
     int cmdnum = 0;
-    ostringstream opcode;
     JSONFormatter *f = new JSONFormatter();
     f->open_object_section("command_descriptions");
     for (MonCommand *cp = mon_commands;
 	 cp < &mon_commands[ARRAY_SIZE(mon_commands)]; cp++) {
 
-      opcode.str("");
-      opcode << ++cmdnum;
-      f->open_object_section(opcode.str().c_str());
+      ostringstream secname;
+      secname << "cmd" << setfill('0') << std::setw(3) << cmdnum;
+      f->open_object_section(secname.str().c_str());
       f->open_array_section("sig");
       dump_sig_to_json(f, cp->cmdstring);
       f->close_section();  // desc array
       f->dump_string("help", string(cp->helpstring));
       f->close_section(); // overall object
+      cmdnum++;
     }
     f->close_section();	// command_descriptions
 
@@ -2488,7 +2477,6 @@ void Monitor::handle_command(MMonCommand *m)
   string module;
   string err;
   map<string, cmd_vartype> cmdmap;
-  int opcode;
   stringstream ss;
 
   dout(0) << "handle_command " << *m << dendl;
@@ -2513,32 +2501,29 @@ void Monitor::handle_command(MMonCommand *m)
 #else
   // XXX allow failure for now
   if (cmdmap_from_json(fullcmd, &cmdmap, ss)) {
-#endif
-
-    opcode = getval("opcode", uint64_t);
-    for (MonCommandOpcodes *op = opcodes; op < &opcodes[ARRAY_SIZE(opcodes)];
-	 op++) {
-      if (opcode == op->opcode) {
-	module = op->module;
-	break;
-      }
+    // XXX hack for pg only for now
+    string cmd_prefix;
+    getval(cmdmap, "prefix", cmd_prefix);
+    if (cmd_prefix.compare(0, 3, "pg ") == 0) {
+      pgmon()->dispatch(m);
     }
   }
+#endif
 
-  if (module == "mds" || m->cmd[0] == "mds") {
+  if (m->cmd[0] == "mds") {
     mdsmon()->dispatch(m);
     return;
   }
-  if (module == "osd" || m->cmd[0] == "osd") {
+  if (m->cmd[0] == "osd") {
     osdmon()->dispatch(m);
     return;
   }
 
-  if (module == "pg" || m->cmd[0] == "pg") {
+  if (m->cmd[0] == "pg") {
     pgmon()->dispatch(m);
     return;
   }
-  if (module == "mon" || m->cmd[0] == "mon") {
+  if (m->cmd[0] == "mon") {
     monmon()->dispatch(m);
     return;
   }
