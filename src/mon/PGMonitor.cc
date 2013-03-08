@@ -1102,50 +1102,39 @@ bool PGMonitor::preprocess_command(MMonCommand *m)
 	  what = *i++;
 	}
       }
-      Formatter *f = 0;
-      r = 0;
-      if (format == "json")
-	f = new JSONFormatter(true);
-      else if (format == "plain")
-	f = 0; //new PlainFormatter();
-      else {
-	r = -EINVAL;
-	ss << "unknown format '" << format << "'";
-      }
+      boost::scoped_ptr<Formatter> f(new_formatter(format));
 
-      if (r == 0) {
-	stringstream ds;
-	if (f) {
-	  if (what == "all") {
-	    f->open_object_section("pg_map");
-	    pg_map.dump(f);
-	    f->close_section();
-	  } else if (what == "summary" || what == "sum") {
-	    f->open_object_section("pg_map");
-	    pg_map.dump_basic(f);
-	    f->close_section();
-	  } else if (what == "pools") {
-	    pg_map.dump_pool_stats(f);
-	  } else if (what == "osds") {
-	    pg_map.dump_osd_stats(f);
-	  } else if (what == "pgs") {
-	    pg_map.dump_pg_stats(f);
-	  } else {
-	    r = -EINVAL;
-	    ss << "i don't know how to dump '" << what << "' is";
-	  }
-	  if (r == 0)
-	    f->flush(ds);
-	  delete f;
+      stringstream ds;
+      if (f) {
+	if (what == "all") {
+	  f->open_object_section("pg_map");
+	  pg_map.dump(f);
+	  f->close_section();
+	} else if (what == "summary" || what == "sum") {
+	  f->open_object_section("pg_map");
+	  pg_map.dump_basic(f.get());
+	  f->close_section();
+	} else if (what == "pools") {
+	  pg_map.dump_pool_stats(f.get());
+	} else if (what == "osds") {
+	  pg_map.dump_osd_stats(f.get());
+	} else if (what == "pgs") {
+	  pg_map.dump_pg_stats(f.get());
 	} else {
-	  pg_map.dump(ds);
+	  r = -EINVAL;
+	  ss << "i don't know how to dump '" << what << "' is";
 	}
-	if (r == 0) {
-	  rdata.append(ds);
-	  ss << "dumped " << what << " in format " << format;
-	}
-	r = 0;
+	if (r == 0)
+	  f->flush(ds);
+	delete f;
+      } else {
+	pg_map.dump(ds);
       }
+      if (r == 0) {
+	rdata.append(ds);
+	ss << "dumped " << what << " in format " << format;
+      }
+      r = 0;
     }
     else if (m->cmd[1] == "dump_json") {
       ss << "ok";
