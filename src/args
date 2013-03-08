@@ -504,7 +504,7 @@ parse_json_funcsigs(s)
 A function signature is mostly an array of argdesc; it's represented
 in JSON as 
 { 
-  "cmd1": {"1":[ "type": type, "name": name, "n": num, "req":true|false <other param>], "help:{"help":helptext}
+  "cmd1": {"sig":[ "type": type, "name": name, "n": num, "req":true|false <other param>], "help:{"help":helptext}
    .
    .
    .
@@ -513,10 +513,10 @@ in JSON as
 A set of sigs is in an dict mapped by a unique number:
 {
   "cmd1": {
-     "1": ["type.. ], "help":{"text":helptext}
+     "sig": ["type.. ], "help":{"text":helptext}
   }
   "cmd2"{
-     "2": [.. ], "help":{"text":helptext}
+     "sig": [.. ], "help":{"text":helptext}
   }
 }
 
@@ -532,7 +532,7 @@ def parse_json_funcsig(s):
         print >> sys.stderr, "Couldn't parse JSON {}: {}".format(s, e)
         raise e
     sigdict = {}
-    for op, sigandhelp in overall.iteritems():
+    for cmdtag, sigandhelp in overall.iteritems():
         helptext = sigandhelp.get('help', 'no help available');
         try:
             sig = sigandhelp['sig']
@@ -661,10 +661,10 @@ def validate(args, signature):
 def try_validate(s, sig):
     try:
         dump = validate(s, sig)
-        print'{!r} ok against {}'.format(s, sig)
+        print '{!r} ok against {}'.format(s, sig)
         print dump
     except Exception as e:
-        print'{!r} failed: {}'.format(s, e)
+        print '{!r} failed: {}'.format(s, e)
     print
 
 def get_process_output(args):
@@ -704,9 +704,10 @@ def main():
     parsed_args = parser.parse_args()
 
     if parsed_args.verbose:
-        for op, sigandhelp in sigdict.iteritems():
+        for cmdtag in sorted(sigdict.keys()):
+            sigandhelp = sigdict[cmdtag]
             sig = sigandhelp['sig']
-            print op, ":", concise_sig(sig)
+            print '{}: {}'.format(cmdtag, concise_sig(sig))
 
     if len(parsed_args.args) == 0:
         print >> sys.stderr, 'No command given'
@@ -725,11 +726,20 @@ def main():
         matched = matchnum(parsed_args.args, sig, partial=True)
         if (matched > best_match_cnt):
             if parsed_args.verbose:
-                print >> sys.stderr, "better match: {} > {}:{} ".format(matched, best_match_cnt, sig)
+                print >> sys.stderr, \
+                    "better match: {} > {}:{} ".format(matched,
+                                                       best_match_cnt, sig)
             best_match_cnt = matched
             bestsigs = [{op:sigandhelp}]
         elif matched == best_match_cnt:
+            if parsed_args.verbose:
+                print >> sys.stderr, \
+                    "equal match: {} > {}:{} ".format(matched,
+                                                       best_match_cnt, sig)
             bestsigs.append({op:sigandhelp})
+
+    if parsed_args.verbose:
+        print >> sys.stderr, "bestsigs: ", bestsigs
 
     # for everything in bestsigs, look for a true match
     for cmdsig in bestsigs:
@@ -760,6 +770,9 @@ def main():
 
 if __name__ == '__main__':
     sys.exit(main())
+
+
+
 
 
 # obsolete interfaces; should recode
