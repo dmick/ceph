@@ -525,6 +525,13 @@ each dict contains 'sig' with the array of descriptors, and 'help'
 with the helptext.
 """
 
+"""
+some semantic issue with the JSON
+"""
+
+class JsonFormatError(Exception):
+    pass
+
 def parse_json_funcsig(s):
     try:
         overall = json.loads(s)
@@ -537,7 +544,8 @@ def parse_json_funcsig(s):
         try:
             sig = sigandhelp['sig']
         except KeyError:
-            raise TypeError("JSON descriptor for opcode {} has no signature ('sig')".format(op));
+            s = "JSON descriptor {} has no 'sig'".format(cmdtag)
+            raise JsonFormatError(s);
 
         newsig = []
         argnum = 0
@@ -549,15 +557,20 @@ def parse_json_funcsig(s):
             else:
                 # not a simple string, must be dict
                 if not 'type' in desc:
+                    s = 'JSON descriptor {} has no type'.format(sig)
+                    raise JsonFormatError(s)
                 # look up type string in our globals() dict; if it's an
                 # object of type types.TypeType, it must be a
                 # locally-defined class. otherwise, we haven't a clue.
                 if desc['type'] in globals():
                     t = globals()[desc['type']]
                     if type(t) != types.TypeType:
-                        raise TypeError('unknown type {}'.format(d['type']))
+                        s = 'unknown type {}'.format(desc['type'])
+                        raise JsonFormatError(s)
                 else:
-                    raise TypeError('no type found in {}'.format(d))
+                    s = 'unknown type {}'.format(desc['type'])
+                    raise JsonFormatError(s)
+
             kwargs = dict()
             for key, val in desc.items():
                 if key not in ['type', 'name', 'n', 'req']:
