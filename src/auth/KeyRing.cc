@@ -25,6 +25,7 @@
 #include "common/debug.h"
 #include "common/errno.h"
 #include "include/str_list.h"
+#include "common/Formatter.h"
 
 #define dout_subsys ceph_subsys_auth
 
@@ -128,6 +129,36 @@ void KeyRing::encode_plaintext(bufferlist& bl)
   print(os);
   string str = os.str();
   bl.append(str);
+}
+
+void KeyRing::encode_formatted(Formatter *f, bufferlist& bl)
+{
+  std::ostringstream(os);
+  f->open_array_section("auth_dump");
+  for (map<EntityName, EntityAuth>::iterator p = keys.begin();
+       p != keys.end();
+       ++p) {
+
+    f->open_object_section("auth_entities");
+    f->dump_string("entity", p->first.to_str().c_str());
+    std::ostringstream keyss;
+    keyss << p->second.key;
+    f->dump_string("key", keyss.str());
+    f->open_array_section("caps");
+    for (map<string, bufferlist>::iterator q = p->second.caps.begin();
+ 	 q != p->second.caps.end();
+	 ++q) {
+      bufferlist::iterator dataiter = q->second.begin();
+      string caps;
+      ::decode(caps, dataiter);
+      f->dump_string(q->first.c_str(), caps);
+    }
+    f->close_section();	/* caps */
+    f->close_section();	/* auth_entities */
+  }
+  f->close_section();	/* auth_dump */
+  f->flush(os);
+  bl.append(os.str());
 }
 
 void KeyRing::decode_plaintext(bufferlist::iterator& bli)

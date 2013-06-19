@@ -560,6 +560,10 @@ bool AuthMonitor::preprocess_command(MMonCommand *m)
     r = -EINVAL;
   }
 
+  string format;
+  cmd_getval(g_ceph_context, cmdmap, "format", format, string("plain"));
+  boost::scoped_ptr<Formatter> f(new_formatter(format));
+
   if (prefix == "auth export") {
     KeyRing keyring;
     export_keyring(keyring);
@@ -568,7 +572,10 @@ bool AuthMonitor::preprocess_command(MMonCommand *m)
       if (keyring.get_auth(entity, eauth)) {
 	KeyRing kr;
 	kr.add(entity, eauth);
-	kr.encode_plaintext(rdata);
+	if (f)
+	  kr.encode_formatted(f.get(), rdata);
+	else
+	  kr.encode_plaintext(rdata);
 	ss << "export " << eauth;
 	r = 0;
       } else {
@@ -576,7 +583,11 @@ bool AuthMonitor::preprocess_command(MMonCommand *m)
 	r = -ENOENT;
       }
     } else {
-      keyring.encode_plaintext(rdata);
+      if (f)
+	keyring.encode_formatted(f.get(), rdata);
+      else
+	keyring.encode_plaintext(rdata);
+
       ss << "exported master keyring";
       r = 0;
     }
@@ -588,7 +599,10 @@ bool AuthMonitor::preprocess_command(MMonCommand *m)
       r = -ENOENT;
     } else {
       keyring.add(entity, entity_auth);
-      keyring.encode_plaintext(rdata);
+      if (f)
+	keyring.encode_formatted(f.get(), rdata);
+      else
+	keyring.encode_plaintext(rdata);
       ss << "exported keyring for " << entity_name;
       r = 0;
     }
