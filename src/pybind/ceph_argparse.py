@@ -543,7 +543,7 @@ class argdesc(object):
     def __str__(self):
         if ((self.t == CephChoices and len(self.instance.strings) == 1)
             or (self.t == CephPrefix)):
-            s = '{0}'.format(str(self.instance))
+            s = str(self.instance)
         else:
             s = '{0}({1})'.format(self.name, str(self.instance))
             if self.N:
@@ -561,7 +561,7 @@ class argdesc(object):
             chunk = '<{0}>'.format(self.name)
         else:
             chunk = str(self.instance)
-        s = '{0}'.format(chunk)
+        s = chunk
         if self.N:
             s += ' [' + chunk + '...]'
         if not self.req:
@@ -572,15 +572,7 @@ def concise_sig(sig):
     """
     Return string representation of sig useful for syntax reference in help
     """
-    first = True
-    s = ''
-    for d in sig:
-        if first:
-            first = False
-        else:
-            s += ' '
-        s += d.helpstr()
-    return s
+    return ' '.join([d.helpstr() for d in sig])
 
 def parse_funcsig(sig):
     """
@@ -847,7 +839,7 @@ def validate_command(parsed_args, sigdict, args, verbose=False):
 
         return valid_dict
 
-def send_command(cluster, target=('mon', ''), cmd=[], inbuf='', timeout=0, 
+def send_command(cluster, target=('mon', ''), cmd=[], inbuf='', timeout=0,
                  verbose=False):
     """
     Send a command to a daemon using librados's
