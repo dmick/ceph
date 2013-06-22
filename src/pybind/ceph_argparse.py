@@ -709,24 +709,24 @@ def matchnum(args, signature, partial=False):
 
 def validate(args, signature, partial=False):
     """
-    validate(s, signature, partial=False)
+    validate(args, signature, partial=False)
 
-    Assumes s represents a possible command input following format of
-    signature.  Runs a validation; no exception means it's OK.  Return
-    a dict containing all arguments named by their descriptor name
-    (with duplicate args per name accumulated into a space-separated
-    value).
+    args is a list of either words or k,v pairs representing a possible
+    command input following format of signature.  Runs a validation; no
+    exception means it's OK.  Return a dict containing all arguments named
+    by their descriptor name (with duplicate args per name accumulated
+    into a space-separated value).
 
     If partial is set, allow partial matching (with partial dict returned)
     """
-    words = args[:]
+    myargs = args[:]
     mysig = copy.deepcopy(signature)
     d = dict()
     for desc in mysig:
         setattr(desc, 'numseen', 0)
         while desc.numseen < desc.n:
-            if words:
-                word = words.pop(0)
+            if myargs:
+                myarg = myargs.pop(0)
             else:
                 if desc.req:
                     if desc.N and desc.numseen < 1:
@@ -765,6 +765,8 @@ def validate(args, signature, partial=False):
             else:
                 # if first CephPrefix or any other type, just set it
                 d[desc.name] = desc.instance.val
+    if myargs and not partial:
+        raise ArgumentError("unused arguments: " + str(myargs))
     return d
 
 def validate_command(parsed_args, sigdict, args, verbose=False):
