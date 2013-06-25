@@ -79,11 +79,10 @@ class CephArgtype(object):
         partial means to accept partial string matches (begins-with).
         If cool, set self.val to the value that should be returned
         (a copy of the input string, or a numeric or boolean interpretation
-        thereof, for example), and return True
+        thereof, for example)
         if not, throw ArgumentError(msg-as-to-why)
         """
         self.val = s
-        return True
 
     def __repr__(self):
         """
@@ -130,7 +129,6 @@ class CephInt(CephArgtype):
             if val < self.range[0]:
                 raise ArgumentValid("{0} not in range {1}".format(val, self.range))
         self.val = val
-        return True
 
     def __str__(self):
         r = ''
@@ -166,7 +164,6 @@ class CephFloat(CephArgtype):
             if val < self.range[0]:
                 raise ArgumentValid("{0} not in range {1}".format(val, self.range))
         self.val = val
-        return True
 
     def __str__(self):
         r = ''
@@ -188,7 +185,6 @@ class CephString(CephArgtype):
             if c in s:
                 raise ArgumentFormat("bad char {0} in {1}".format(c, s))
         self.val = s
-        return True
 
     def __str__(self):
         b = ''
@@ -205,7 +201,7 @@ class CephSocketpath(CephArgtype):
         if not stat.S_ISSOCK(mode):
             raise ArgumentValid('socket path {0} is not a socket'.format(s))
         self.val = s
-        return True
+
     def __str__(self):
         return '<admin-socket-path>'
 
@@ -256,7 +252,6 @@ class CephIPAddr(CephArgtype):
         if p is not None and long(p) > 65535:
             raise ArgumentValid("{0} not a valid port number".format(p))
         self.val = s
-        return True
 
     def __str__(self):
         return '<IPaddr[:port]>'
@@ -270,7 +265,6 @@ class CephEntityAddr(CephIPAddr):
         if not super(self.__class__, self).valid(ip):
             raise ArgumentValid('CephEntityAddr {0}: ip address invalid'.format(s))
         self.val = s
-        return True
 
     def __str__(self):
         return '<EntityAddr>'
@@ -305,7 +299,6 @@ class CephPgid(CephArgtype):
         except:
             raise ArgumentFormat('pgnum {0} not hex integer'.format(pgnum))
         self.val = s
-        return True
 
     def __str__(self):
         return '<pgid>'
@@ -323,7 +316,7 @@ class CephName(CephArgtype):
             self.val = s
             self.nametype = None
             self.nameid = None
-            return True
+            return
         if s.find('.') == -1:
             raise ArgumentFormat('CephName: no . in {0}'.format(s))
         else:
@@ -339,7 +332,6 @@ class CephName(CephArgtype):
             self.nametype = t
         self.val = s
         self.nameid = i
-        return True
 
     def __str__(self):
         return '<name (type.id)>'
@@ -355,7 +347,7 @@ class CephOsdName(CephArgtype):
             self.val = s
             self.nametype = None
             self.nameid = None
-            return True
+            return
         if s.find('.') != -1:
             t, i = s.split('.')
         else:
@@ -370,7 +362,6 @@ class CephOsdName(CephArgtype):
         self.nametype = t
         self.nameid = i
         self.val = i
-        return True
 
     def __str__(self):
         return '<osdname (id|osd.id)>'
@@ -388,13 +379,13 @@ class CephChoices(CephArgtype):
                 # show as __str__ does: {s1|s2..}
                 raise ArgumentValid("{0} not in {1}".format(s, self))
             self.val = s
-            return True
+            return
 
         # partial
         for t in self.strings:
             if t.startswith(s):
                 self.val = s
-                return True
+                return
         raise ArgumentValid("{0} not in {1}".  format(s, self))
 
     def __str__(self):
@@ -414,7 +405,6 @@ class CephFilepath(CephArgtype):
             raise ArgumentValid('can\'t open {0}: {1}'.format(s, e))
         f.close()
         self.val = s
-        return True
 
     def __str__(self):
         return '<outfilename>'
@@ -439,7 +429,6 @@ class CephFragment(CephArgtype):
         except:
             raise ArgumentFormat('can\'t convert {0} to integer'.format(bits))
         self.val = s
-        return True
 
     def __str__(self):
         return "<CephFS fragment ID (0xvvv/bbb)>"
@@ -455,7 +444,6 @@ class CephUUID(CephArgtype):
         except Exception as e:
             raise ArgumentFormat('invalid UUID {0}: {1}'.format(s, e))
         self.val = s
-        return True
 
     def __str__(self):
         return '<uuid>'
@@ -472,12 +460,14 @@ class CephPrefix(CephArgtype):
         if partial:
             if self.prefix.startswith(s):
                 self.val = s
-                return True
+                return
         else:
             if (s == self.prefix):
                 self.val = s
-                return True
+                return
+
         raise ArgumentPrefix("no match for {0}".format(s))
+
 
     def __str__(self):
         return self.prefix
@@ -528,7 +518,7 @@ class argdesc(object):
             if k.startswith('__') or k in internals:
                 pass
             else:
-                # undo mods above
+                # undo modification from __init__
                 if k == 'n' and self.N:
                     v = 'N'
                 r += '{0}={1}, '.format(k,v)
@@ -662,21 +652,36 @@ def parse_json_funcsigs(s):
         sigdict[cmdtag] = {'sig':newsig, 'helptext':helptext}
     return sigdict
 
-def validate_one(word, desc, partial=False):
+def validate_one(arg, desc, partial=False):
     """
-    validate_one(word, desc, partial=False)
+    validate_one(arg, desc, partial=False)
 
-    validate word against the constructed instance of the type
-    in desc.  May raise exception.  If it returns false (and doesn't
-    raise an exception), desc.instance.val will
-    contain the validated value (in the appropriate type).
+    validate arg against the constructed instance of the type in desc.
+    arg may be a single string or may be a list or tuple, implying
+    name=value.  In the tuple/list case, name must match and value must
+    be a valid value for the type; if value is empty, it is assumed to
+    be identical to name.
+
+    Raises exception of base type ArgumentError if bad arg/name given.
+    Otherwise, True return means that desc.instance.val will contain
+    the validated value (in an instance of the appropriate type).
     """
-    if desc.instance.valid(word, partial):
-        desc.numseen += 1
-        if desc.N:
-            desc.n = desc.numseen + 1
-        return True
-    return False
+    if isinstance(arg, tuple) or isinstance(arg, list):
+        if len(arg) != 2:
+            raise ArgumentError('Argument tuple not of length 2')
+        name, word = arg
+        if name != desc.name:
+            raise ArgumentError('Argument name {} != {}'.format(name, desc.name))
+        # allow params like "detail=detail" to be submitted as name-only
+        if not word:
+            arg = name
+        else:
+            arg = word
+
+    desc.instance.valid(arg, partial)
+    desc.numseen += 1
+    if desc.N:
+        desc.n = desc.numseen + 1
 
 def matchnum(args, signature, partial=False):
     """
@@ -696,9 +701,15 @@ def matchnum(args, signature, partial=False):
             if not words:
                 return matchcnt;
             word = words.pop(0)
+
             try:
                 validate_one(word, desc, partial)
-            except:
+                valid = True
+            except ArgumentError:
+                # matchnum doesn't care about type of error
+                valid = False
+
+            if not valid:
                 if not desc.req:
                     # this wasn't required, so word may match the next desc
                     words.insert(0, word)
@@ -720,7 +731,13 @@ def validate(args, signature, partial=False):
     by their descriptor name (with duplicate args per name accumulated
     into a space-separated value).
 
-    If partial is set, allow partial matching (with partial dict returned)
+    Mismatches of prefix are attempted to be ignored, as this probably
+    just means the search hasn't hit the correct command.  Mismatches of
+    non-prefix arguments are treated as fatal exceptions and reraised.
+
+    If partial is set, allow partial matching (with partial dict returned);
+    in this case there are no exceptions raised.
+
     """
     myargs = args[:]
     mysig = copy.deepcopy(signature)
@@ -731,6 +748,7 @@ def validate(args, signature, partial=False):
             if myargs:
                 myarg = myargs.pop(0)
             else:
+                # out of arguments
                 if desc.req:
                     if desc.N and desc.numseen < 1:
                         # wanted N, didn't even get 1
@@ -744,17 +762,24 @@ def validate(args, signature, partial=False):
                         raise ArgumentNumber('saw {0} of {1}, expected {2}'.format(desc.numseen, desc, desc.n))
                 break
             try:
-                validate_one(word, desc)
+                validate_one(myarg, desc)
+                valid = True
             except Exception as e:
-                # not valid; if not required, just push back for the next one
+                if isinstance(e, ArgumentPrefix):
+                    valid = False
+                else:
+                    raise e
+            if not valid:
+                # argument mismatch, not prefix
+                # if not required, just push back for the next one
                 if not desc.req:
-                    words.insert(0, word)
+                    myargs.insert(0, myarg)
                     break
                 else:
                     # hm, but it was required, so quit
                     if partial:
                         return d
-                    raise e
+                    raise ArgumentFormat('{0} not valid argument {1}: {2}'.format(str(myarg), desc, e))
 
             if desc.N:
                 # value should be a list
@@ -814,10 +839,6 @@ def validate_command(parsed_args, sigdict, args, verbose=False):
                     valid_dict = validate(args, sig, verbose)
                     found = sig
                     break
-                except ArgumentPrefix:
-                    # this means a CephPrefix type didn't match; since
-                    # this is common, just eat it
-                    pass
                 except ArgumentError as e:
                     # prefixes matched, but some other arg didn't;
                     # this is interesting information if verbose
