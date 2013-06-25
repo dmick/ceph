@@ -574,6 +574,13 @@ def concise_sig(sig):
     """
     return ' '.join([d.helpstr() for d in sig])
 
+def descsort(sh1, sh2):
+    """
+    sort descriptors by prefixes, defined as the concatenation of all simple
+    strings in the descriptor; this works out to just the leading strings.
+    """
+    return cmp(concise_sig(sh1['sig']), concise_sig(sh2['sig']))
+
 def parse_funcsig(sig):
     """
     parse a single descriptor (array of strings or dicts) into a
