@@ -1,0 +1,266 @@
+#!/usr/bin/python
+# vim: ts=4 sw=4 smarttab expandtab
+
+import os
+import sys
+
+# Make life easier on developers
+
+MYPATH = os.path.abspath(__file__)
+MYDIR = os.path.dirname(MYPATH)
+DEVMODEMSG = '*** DEVELOPER MODE: setting PYTHONPATH and LD_LIBRARY_PATH'
+
+if MYDIR.endswith('src') and \
+   os.path.exists(os.path.join(MYDIR, '.libs')) and \
+   os.path.exists(os.path.join(MYDIR, 'pybind')):
+    MYLIBPATH = os.path.join(MYDIR, '.libs')
+    if 'LD_LIBRARY_PATH' in os.environ:
+        if MYLIBPATH not in os.environ['LD_LIBRARY_PATH']:
+            os.environ['LD_LIBRARY_PATH'] += ':' + MYLIBPATH
+            print >> sys.stderr, DEVMODEMSG
+            os.execvp('python', ['python'] + sys.argv)
+    else:
+        os.environ['LD_LIBRARY_PATH'] = MYLIBPATH
+        print >> sys.stderr, DEVMODEMSG
+        os.execvp('python', ['python'] + sys.argv)
+    sys.path.insert(0, os.path.join(MYDIR, 'pybind'))
+
+import errno
+import json
+import logging
+from logging.handlers import WatchedFileHandler
+import rados
+
+import flask
+from ceph_argparse import *
+
+#
+# Globals
+#
+app = flask.Flask(__name__)
+app.config.from_object('apicfg')
+BASEURL = app.config['BASEURL']
+LOGLEVEL = app.config.get('LOGLEVEL', 'warning')
+
+loglevels = {
+    'critical':logging.CRITICAL,
+    'error':logging.ERROR,
+    'warning':logging.WARNING,
+    'info':logging.INFO,
+    'debug':logging.DEBUG,
+}
+
+app.logger.addHandler(WatchedFileHandler('/tmp/api.log'))
+app.logger.setLevel(loglevels[LOGLEVEL.lower()])
+
+cluster = None
+urls = {}
+sigdict = {}
+
+def generate_url_and_params(sig):
+    """
+    Digest command signature from cluster; generate an absolute
+    (including BASEURL) endpoint from all the prefix words,
+    and a dictionary of non-prefix parameters
+    """
+
+    url = ''
+    params = []
+    for desc in sig:
+        if desc.t == CephPrefix:
+            url += '/' + desc.instance.prefix
+        elif desc.t == CephChoices and \
+             len(desc.instance.strings) == 1 and \
+             desc.req and \
+             not str(desc.instance).startswith('--'):
+                url += '/' + str(desc.instance)
+        else:
+            params.append(desc)
+    return BASEURL +  url, params
+
+def handler(catchall_path=None, format='json-pretty'):
+    """
+    Main endpoint handler; generic for every endpoint
+    """
+
+    if (catchall_path):
+        ep = catchall_path.replace('.<format>', '')
+    else:
+        ep = flask.request.endpoint.replace('.<format>', '')
+
+    if ep[0] != '/':
+        ep = '/' + ep
+    if not ep.startswith(BASEURL):
+        return flask.make_response('404 Page not found\n<a href="{0}"><BR>Ceph REST API</a>'.format(BASEURL), 404)
+
+    relative_endpoint = ep[len(BASEURL)+1:]
+    prefix = ' '.join(relative_endpoint.split('/')).strip()
+
+    # show "match as much as you gave me" help for unknown endpoints
+    if not ep in urls:
+        return show_human_help(prefix)
+
+    urldict = urls[ep]
+    paramsig = urldict['paramsig']
+
+    # allow '?help' for any specifically-known endpoint
+    if 'help' in flask.request.args:
+        response = flask.make_response('{0}: {1}'.\
+            format(prefix + concise_sig(paramsig), urldict['helptext']))
+        response.headers['Content-Type'] = 'text/plain'
+        return response
+
+    # if there are parameters for this endpoint, process them
+    if paramsig:
+        args = []
+        for k, l in flask.request.args.iterlists():
+            # allow only single-valued args
+            if len(l) > 1:
+                return flask.make_response('param {0} has more than one arg {1}'.format(k, l), 400)
+            args.append((k, l[0]))
+
+        # is this a valid set of params?
+        try:
+            argdict = validate(args, paramsig)
+        except Exception as e:
+            return show_human_help(prefix)
+    else:
+        if flask.request.args:
+            return flask.make_response('params supplied, endpoint {0} doesn\'t take params'.format(flask.request.endpoint), 400)
+        argdict = {}
+
+    argdict['format'] = format
+
+    app.logger.debug('sending command prefix %s argdict %s', prefix, argdict)
+    ret, outbuf, outs = json_command(cluster, prefix=prefix, argdict=argdict)
+    if ret:
+        return flask.make_response('error processing command: {0} ({1})'.\
+                                   format(outs, ret), 500)
+
+    response = flask.make_response(outbuf)
+    # XXX probably want application/<format> here
+    response.headers['Content-Type'] = 'text/plain'
+    return response
+
+# XXX this is done globally, and cluster connection kept; there
+# are facilities to pass around global info to requests and to
+# tear down connections between requests if it becomes important
+
+def cluster_setup():
+    """
+    Initialize the running instance.  Open the cluster, get the command
+    signatures, stuff them away in the urls dict, which maps
+    <endpoint_url> -> {'paramsig':<params signature>, 'helptext':<helptext>}
+    """
+
+    global cluster, sigdict
+    cluster = rados.Rados(name='client.admin', conffile='')
+    # rem_args = cluster.parse_argv(more_args)
+    cluster.connect()
+    ret, outbuf, outs = json_command(cluster, prefix='get_command_descriptions')
+    if ret:
+        app.logger.error('Can\'t contact cluster for command descriptions: %s', outs)
+        # XXX better error exit path?
+        sys.exit(1)
+    try:
+        sigdict = parse_json_funcsigs(outbuf)
+    except Exception as e:
+        app.logger.error('Can\'t parse command descriptions: %s', e)
+        sys.exit(1)
+    # sigdict maps "cmdNNN" to a "helpandsig" dict
+    # "helpandsig" contains keys 'helptext' and 'sig'
+    # 'sig' is an array of argdescs
+    global urls
+    urls = {}
+    for cmdnum, helpsigdict in sigdict.iteritems():
+        cmdsig = helpsigdict['sig']
+        url, params = generate_url_and_params(cmdsig)
+        if url in urls:
+            pass
+        else:
+            app.add_url_rule(url, url, handler)
+            urls[url] = {'paramsig':params, 'helptext':helpsigdict['helptext']}
+            url += '.<format>'
+            app.add_url_rule(url, url, handler)
+            urls[url] = {'paramsig':params, 'helptext':helpsigdict['helptext']}
+    app.logger.debug("urls added: %d", len(urls))
+    app.add_url_rule('/<path:catchall_path>', '/<path:catchall_path>', handler)
+
+
+def log_request():
+    """
+    For every request, log it.  XXX Probably overkill for production
+    """
+    app.logger.info(flask.request.url + " from " + flask.request.remote_addr + " " + flask.request.user_agent.string)
+
+#
+# URL-handling functions
+
+@app.route('/')
+def root_redir():
+    return flask.redirect(BASEURL)
+
+def concise_sig_for_uri(sig):
+    """
+    Return a generic description of how one would send a REST request for sig
+    """
+    prefix = []
+    args = []
+    for d in sig:
+        if d.t == CephPrefix:
+            prefix.append(d.instance.prefix)
+        else:
+            args.append(d.name + '=' + str(d))
+    return '/'.join(prefix) + '?' + '#'.join(args)
+
+
+def show_human_help(prefix):
+    """
+    Dump table showing commands matching prefix
+    """
+    # XXX this really needs to be a template
+    #s = '<html><body><style>.colhalf { width: 50%;} body{word-wrap:break-word;}</style>'
+    #s += '<table border=1><col class=colhalf /><col class=colhalf />'
+    #s += '<th>Possible commands:</th>'
+    # XXX the above mucking with css doesn't cause sensible columns.
+    s = '<html><body><table border=1><th>Possible commands:</th>'
+
+    global sigdict
+    possible = []
+    for sighelp in sorted(sigdict.itervalues(), cmp=descsort):
+        concise = concise_sig(sighelp['sig'])
+        if concise.startswith(prefix):
+            line = ['<tr><td>']
+            line.append(flask.escape(concise_sig_for_uri(sighelp['sig'])))
+            line.append('</td><td>')
+            line.append(flask.escape(sighelp['helptext']))
+            line.append('</td></tr>\n')
+            s += ''.join(line)
+
+    s += '</table></body></html>'
+    resp = flask.make_response(s)
+    resp.headers['Content-Type'] = 'text/html'
+    return resp
+
+@app.errorhandler(404)
+def page_not_found(error):
+    return flask.make_response('page not found: {0} error {1}'.format(flask.request.endpoint, error)), 404
+
+app.before_request_funcs = {None:[log_request]}
+cluster_setup()
+
+
+#
+# main
+#
+
+if __name__ == '__main__':
+    addr = app.config.get('LISTENADDR', '0.0.0.0')
+    port = app.config.get('PORT', 5000)
+
+    import inspect
+    files = [os.path.split(fr[1])[-1] for fr in inspect.stack()]
+    if 'pdb.py' in files:
+        app.run(host=addr, port=port, debug=True, use_reloader=False, use_debugger=False)
+    else:
+        app.run(host=addr, port=port, debug=True)

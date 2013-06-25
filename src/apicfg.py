@@ -1,0 +1,5 @@
+LISTENADDR = '0.0.0.0'
+PORT = 5000
+APIVERS = 'v0.1'
+BASEURL = '/api/' + APIVERS
+LOGLEVEL = 'warning'
