@@ -287,10 +287,6 @@ class CephObjectname(CephArgtype):
     Object name.  Maybe should be combined with Pool name as they're always
     present in pairs, and then could be checked for presence
     """
-    def valid(self, s, partial=False):
-        self.val = s
-        return True
-
     def __str__(self):
         return '<objectname>'
 
