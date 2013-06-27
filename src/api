@@ -76,7 +76,7 @@ def generate_url_and_params(sig):
                 url += '/' + str(desc.instance)
         else:
             params.append(desc)
-    return BASEURL +  url, params
+    return BASEURL + url, params
 
 def handler(catchall_path=None, format='json-pretty'):
     """
@@ -195,6 +195,7 @@ def log_request():
 
 #
 # URL-handling functions
+#
 
 @app.route('/')
 def root_redir():
