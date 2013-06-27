@@ -2529,9 +2529,12 @@ void Monitor::get_status(stringstream &ss, Formatter *f)
 struct MonCommand {
   string cmdstring;
   string helpstring;
+  string module;
+  string req_perms;
+  string availability;
 } mon_commands[] = {
-#define COMMAND(parsesig, helptext) \
-  {parsesig, helptext},
+#define COMMAND(parsesig, helptext, modulename, req_perms, avail) \
+  {parsesig, helptext, modulename, req_perms, avail},
 #include <mon/MonCommands.h>
 };
 
