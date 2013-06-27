@@ -130,6 +130,8 @@ def handler(catchall_path=None, format='json-pretty'):
         argdict = {}
 
     argdict['format'] = format
+    argdict['module'] = urldict['module']
+    argdict['perm'] = urldict['perm']
 
     app.logger.debug('sending command prefix %s argdict %s', prefix, argdict)
     ret, outbuf, outs = json_command(cluster, prefix=prefix, argdict=argdict)
@@ -163,27 +165,39 @@ def cluster_setup():
         # XXX better error exit path?
         sys.exit(1)
     try:
-        sigdict = parse_json_funcsigs(outbuf)
+        sigdict = parse_json_funcsigs(outbuf, 'rest')
     except Exception as e:
         app.logger.error('Can\'t parse command descriptions: %s', e)
         sys.exit(1)
-    # sigdict maps "cmdNNN" to a "helpandsig" dict
-    # "helpandsig" contains keys 'help' and 'sig'
-    # 'sig' is an array of argdescs
+    # sigdict maps "cmdNNN" to a dict containing:
+    # 'sig', an array of argdescs
+    # 'help', the helptext
+    # 'module', the Ceph module this command relates to
+    # 'perm', a 'rwx*' string representing required permissions, and also
+    #    a hint as to whether this is a GET or POST/PUT operation
+    # 'avail', a comma-separated list of strings of consumers that should
+    #    display this command (filtered by parse_json_funcsigs() above)
     global urls
     urls = {}
-    for cmdnum, helpsigdict in sigdict.iteritems():
-        cmdsig = helpsigdict['sig']
+    for cmdnum, cmddict in sigdict.iteritems():
+        cmdsig = cmddict['sig']
         url, params = generate_url_and_params(cmdsig)
         if url in urls:
-            pass
+            continue
         else:
+            urldict = {'paramsig':params,
+                       'help':cmddict['help'],
+                       'module':cmddict['module'],
+                       'perm':cmddict['perm'],
+                      }
             app.add_url_rule(url, url, handler)
-            urls[url] = {'paramsig':params, 'help':helpsigdict['help']}
+            urls[url] = urldict
+
             url += '.<format>'
             app.add_url_rule(url, url, handler)
-            urls[url] = {'paramsig':params, 'help':helpsigdict['help']}
+            urls[url] = urldict
     app.logger.debug("urls added: %d", len(urls))
+
     app.add_url_rule('/<path:catchall_path>', '/<path:catchall_path>', handler)
 
 

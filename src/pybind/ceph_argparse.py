@@ -649,6 +649,10 @@ def parse_json_funcsigs(s, consumer):
         if not 'sig' in cmd:
             s = "JSON descriptor {0} has no 'sig'".format(cmdtag)
             raise JsonFormat(s)
+        # check 'avail' and possibly ignore this command
+        if 'avail' in cmd:
+            if not consumer in cmd['avail']:
+                continue
         # rewrite the 'sig' item with the argdesc-ized version, and...
         cmd['sig'] = parse_funcsig(cmd['sig'])
         # just take everything else as given
