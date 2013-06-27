@@ -1308,11 +1308,17 @@ bool PGMonitor::preprocess_command(MMonCommand *m)
   }
 
   string prefix;
+  string module;
+  string perm;
   cmd_getval(g_ceph_context, cmdmap, "prefix", prefix);
+  cmd_getval(g_ceph_context, cmdmap, "module", module);
+  cmd_getval(g_ceph_context, cmdmap, "perm", perm);
+  mon_rwxa_t permflags;
+  permflags = parse_permstr(perm);
 
   MonSession *session = m->get_session();
   if (!session ||
-      (!session->is_capable("pg", MON_CAP_R) &&
+      (!session->is_capable(module, permflags) &&
        !mon->_allowed_command(session, cmdmap))) {
     mon->reply_command(m, -EACCES, "access denied", rdata, get_last_committed());
     return true;
