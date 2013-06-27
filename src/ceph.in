@@ -265,13 +265,13 @@ def format_help(cmddict, partial=None):
     fullusage = ''
     for cmd in sorted(cmddict.itervalues(), cmp=descsort):
 
-        if not cmd['helptext']:
+        if not cmd['help']:
             continue
         concise = concise_sig(cmd['sig'])
         if partial and not concise.startswith(partial):
             continue
         siglines = [l for l in wrap(concise, 40, 1)]
-        helplines = [l for l in wrap(cmd['helptext'], 39, 1)]
+        helplines = [l for l in wrap(cmd['help'], 39, 1)]
 
         # make lists the same length
         maxlen = max(len(siglines), len(helplines))

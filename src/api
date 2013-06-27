@@ -106,7 +106,7 @@ def handler(catchall_path=None, format='json-pretty'):
     # allow '?help' for any specifically-known endpoint
     if 'help' in flask.request.args:
         response = flask.make_response('{0}: {1}'.\
-            format(prefix + concise_sig(paramsig), urldict['helptext']))
+            format(prefix + concise_sig(paramsig), urldict['help']))
         response.headers['Content-Type'] = 'text/plain'
         return response
 
@@ -150,7 +150,7 @@ def cluster_setup():
     """
     Initialize the running instance.  Open the cluster, get the command
     signatures, stuff them away in the urls dict, which maps
-    <endpoint_url> -> {'paramsig':<params signature>, 'helptext':<helptext>}
+    <endpoint_url> -> {'paramsig':<params signature>, 'help':<helptext>}
     """
 
     global cluster, sigdict
@@ -168,7 +168,7 @@ def cluster_setup():
         app.logger.error('Can\'t parse command descriptions: %s', e)
         sys.exit(1)
     # sigdict maps "cmdNNN" to a "helpandsig" dict
-    # "helpandsig" contains keys 'helptext' and 'sig'
+    # "helpandsig" contains keys 'help' and 'sig'
     # 'sig' is an array of argdescs
     global urls
     urls = {}
@@ -179,10 +179,10 @@ def cluster_setup():
             pass
         else:
             app.add_url_rule(url, url, handler)
-            urls[url] = {'paramsig':params, 'helptext':helpsigdict['helptext']}
+            urls[url] = {'paramsig':params, 'help':helpsigdict['help']}
             url += '.<format>'
             app.add_url_rule(url, url, handler)
-            urls[url] = {'paramsig':params, 'helptext':helpsigdict['helptext']}
+            urls[url] = {'paramsig':params, 'help':helpsigdict['help']}
     app.logger.debug("urls added: %d", len(urls))
     app.add_url_rule('/<path:catchall_path>', '/<path:catchall_path>', handler)
 
@@ -233,7 +233,7 @@ def show_human_help(prefix):
             line = ['<tr><td>']
             line.append(flask.escape(concise_sig_for_uri(sighelp['sig'])))
             line.append('</td><td>')
-            line.append(flask.escape(sighelp['helptext']))
+            line.append(flask.escape(sighelp['help']))
             line.append('</td></tr>\n')
             s += ''.join(line)
 

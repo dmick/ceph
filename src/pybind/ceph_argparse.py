@@ -608,14 +608,12 @@ def parse_funcsig(sig):
     return newsig
 
 
-def parse_json_funcsigs(s):
+def parse_json_funcsigs(s, consumer):
     """
-    parse_json_funcsigs(s)
-
     A function signature is mostly an array of argdesc; it's represented
     in JSON as
     {
-      "cmd001": {"sig":[ "type": type, "name": name, "n": num, "req":true|false <other param>], "help":helptext}
+      "cmd001": {"sig":[ "type": type, "name": name, "n": num, "req":true|false <other param>], "help":helptext, "module":modulename, "perm":perms, "avail":availability}
        .
        .
        .
@@ -624,16 +622,22 @@ def parse_json_funcsigs(s):
     A set of sigs is in an dict mapped by a unique number:
     {
       "cmd1": {
-         "sig": ["type.. ], "help":{"text":helptext}
+         "sig": ["type.. ], "help":helptext...
       }
       "cmd2"{
-         "sig": [.. ], "help":{"text":helptext}
+         "sig": [.. ], "help":helptext...
       }
     }
 
-    Parse the string s and return an dict of dicts, keyed by opcode;
+    Parse the string s and return a dict of dicts, keyed by opcode;
     each dict contains 'sig' with the array of descriptors, and 'help'
-    with the helptext.
+    with the helptext, 'module' with the module name, 'perm' with a
+    string representing required permissions in that module to execute
+    this command (and also whether it is a read or write command from
+    the cluster state perspective), and 'avail' as a hint for
+    whether the command should be advertised by CLI, REST, or both.
+    If avail does not contain 'consumer', don't include the command
+    in the returned dict.
     """
     try:
         overall = json.loads(s)
@@ -642,14 +646,13 @@ def parse_json_funcsigs(s):
         raise e
     sigdict = {}
     for cmdtag, cmd in overall.iteritems():
-        helptext = cmd.get('help', 'no help available')
-        try:
-            sig = cmd['sig']
-        except KeyError:
+        if not 'sig' in cmd:
             s = "JSON descriptor {0} has no 'sig'".format(cmdtag)
             raise JsonFormat(s)
-        newsig = parse_funcsig(sig)
-        sigdict[cmdtag] = {'sig':newsig, 'helptext':helptext}
+        # rewrite the 'sig' item with the argdesc-ized version, and...
+        cmd['sig'] = parse_funcsig(cmd['sig'])
+        # just take everything else as given
+        sigdict[cmdtag] = cmd
     return sigdict
 
 def validate_one(arg, desc, partial=False):
@@ -834,10 +837,10 @@ def validate_command(parsed_args, sigdict, args, verbose=False):
         for cmdsig in bestcmds:
             for cmd in cmdsig.itervalues():
                 sig = cmd['sig']
-                helptext = cmd['helptext']
+                helptext = cmd['help']
                 try:
                     valid_dict = validate(args, sig, verbose)
-                    found = sig
+                    found = cmd
                     break
                 except ArgumentError as e:
                     # prefixes matched, but some other arg didn't;
@@ -862,6 +865,11 @@ def validate_command(parsed_args, sigdict, args, verbose=False):
 
         if parsed_args.threshold:
             valid_dict['threshold'] = parsed_args.threshold
+
+        if 'perm' in found:
+            valid_dict['perm'] = found['perm']
+        if 'module' in found:
+            valid_dict['module'] = found['module']
 
         return valid_dict
 
