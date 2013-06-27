@@ -95,6 +95,21 @@ ostream& operator<<(ostream& out, const MonCapGrant& m)
   return out;
 }
 
+mon_rwxa_t parse_permstr(const string &s)
+{
+  __u8 rwx = 0;
+
+  if (s.find("*") != string::npos)
+    return MON_CAP_ANY;
+
+  if (s.find("r") != string::npos)
+    rwx |= MON_CAP_R;
+  if (s.find("w") != string::npos)
+    rwx |= MON_CAP_W;
+  if (s.find("x") != string::npos)
+    rwx |= MON_CAP_X;
+  return rwx;
+}
 
 // <magic>
 //  fusion lets us easily populate structs via the qi parser.

@@ -156,5 +156,6 @@ struct MonCap {
 WRITE_CLASS_ENCODER(MonCap)
 
 ostream& operator<<(ostream& out, const MonCap& cap);
+mon_rwxa_t parse_permstr(const string &s);
 
 #endif
