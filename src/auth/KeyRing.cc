@@ -144,7 +144,7 @@ void KeyRing::encode_formatted(Formatter *f, bufferlist& bl)
     std::ostringstream keyss;
     keyss << p->second.key;
     f->dump_string("key", keyss.str());
-    f->open_array_section("caps");
+    f->open_object_section("caps");
     for (map<string, bufferlist>::iterator q = p->second.caps.begin();
  	 q != p->second.caps.end();
 	 ++q) {
