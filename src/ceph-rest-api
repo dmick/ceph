@@ -224,11 +224,13 @@ def cluster_setup():
     app.add_url_rule('/<path:catchall_path>', '/<path:catchall_path>', handler, methods=['GET', 'PUT'])
 
 
+@app.before_request
 def log_request():
     """
     For every request, log it.  XXX Probably overkill for production
     """
     app.logger.info(flask.request.url + " from " + flask.request.remote_addr + " " + flask.request.user_agent.string)
+    app.logger.debug("Accept: %s", flask.request.accept_mimetypes.values())
 
 #
 # URL-handling functions
@@ -293,7 +295,6 @@ def show_human_help(prefix):
 def page_not_found(error):
     return flask.make_response('page not found: {0} error {1}'.format(flask.request.endpoint, error)), 404
 
-app.before_request_funcs = {None:[log_request]}
 cluster_setup()
 
 
