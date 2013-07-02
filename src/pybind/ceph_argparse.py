@@ -753,6 +753,7 @@ def validate(args, signature, partial=False):
         while desc.numseen < desc.n:
             # get either the value matching key 'desc.name' or the next arg in
             # the non-dict list
+            myarg = None
             if isinstance(myargs, dict):
                 myarg = myargs.pop(desc.name, None)
             elif myargs:
