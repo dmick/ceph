@@ -187,12 +187,18 @@ def cluster_setup():
         if url in urls:
             continue
         else:
+            perm = cmddict['perm']
             urldict = {'paramsig':params,
                        'help':cmddict['help'],
                        'module':cmddict['module'],
-                       'perm':cmddict['perm'],
+                       'perm':perm,
                       }
-            app.add_url_rule(url, url, handler)
+            method_dict = {'r':['GET'],
+                       'w':['PUT', 'DELETE']}
+            for k in method_dict.iterkeys():
+                if k in perm:
+                    methods = method_dict[k]
+            app.add_url_rule(url, url, handler, methods=methods)
             urls[url] = urldict
 
             url += '.<format>'
@@ -200,7 +206,7 @@ def cluster_setup():
             urls[url] = urldict
     app.logger.debug("urls added: %d", len(urls))
 
-    app.add_url_rule('/<path:catchall_path>', '/<path:catchall_path>', handler)
+    app.add_url_rule('/<path:catchall_path>', '/<path:catchall_path>', handler, methods=['GET', 'PUT'])
 
 
 def log_request():
@@ -246,15 +252,19 @@ def show_human_help(prefix):
 
     global sigdict
     possible = []
-    for sighelp in sorted(sigdict.itervalues(), cmp=descsort):
-        concise = concise_sig(sighelp['sig'])
+    permmap = {'r':'GET', 'rw':'PUT'}
+    line = ''
+    for cmdsig in sorted(sigdict.itervalues(), cmp=descsort):
+        concise = concise_sig(cmdsig['sig'])
         if concise.startswith(prefix):
             line = ['<tr><td>']
             wrapped_sig = textwrap.wrap(concise_sig_for_uri(cmdsig['sig']), 40)
             for sigline in wrapped_sig:
                 line.append(flask.escape(sigline) + '\n')
             line.append('</td><td>')
-            line.append(flask.escape(sighelp['help']))
+            line.append(permmap[cmdsig['perm']])
+            line.append('</td><td>')
+            line.append(flask.escape(cmdsig['help']))
             line.append('</td></tr>\n')
             s += ''.join(line)
 
