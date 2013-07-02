@@ -30,6 +30,7 @@ import json
 import logging
 from logging.handlers import WatchedFileHandler
 import rados
+import textwrap
 
 import flask
 from ceph_argparse import *
@@ -227,8 +228,10 @@ def concise_sig_for_uri(sig):
             prefix.append(d.instance.prefix)
         else:
             args.append(d.name + '=' + str(d))
-    return '/'.join(prefix) + '?' + '#'.join(args)
-
+    sig = '/'.join(prefix)
+    if args:
+        sig += '?' + '&'.join(args)
+    return sig
 
 def show_human_help(prefix):
     """
@@ -239,7 +242,7 @@ def show_human_help(prefix):
     #s += '<table border=1><col class=colhalf /><col class=colhalf />'
     #s += '<th>Possible commands:</th>'
     # XXX the above mucking with css doesn't cause sensible columns.
-    s = '<html><body><table border=1><th>Possible commands:</th>'
+    s = '<html><body><table border=1><th>Possible commands:</th><th>Method</th><th>Description</th>'
 
     global sigdict
     possible = []
@@ -247,7 +250,9 @@ def show_human_help(prefix):
         concise = concise_sig(sighelp['sig'])
         if concise.startswith(prefix):
             line = ['<tr><td>']
-            line.append(flask.escape(concise_sig_for_uri(sighelp['sig'])))
+            wrapped_sig = textwrap.wrap(concise_sig_for_uri(cmdsig['sig']), 40)
+            for sigline in wrapped_sig:
+                line.append(flask.escape(sigline) + '\n')
             line.append('</td><td>')
             line.append(flask.escape(sighelp['help']))
             line.append('</td></tr>\n')
