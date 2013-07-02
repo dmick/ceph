@@ -79,7 +79,7 @@ def generate_url_and_params(sig):
             params.append(desc)
     return BASEURL + url, params
 
-def handler(catchall_path=None, format='json-pretty'):
+def handler(catchall_path=None, format=None):
     """
     Main endpoint handler; generic for every endpoint
     """
@@ -138,6 +138,15 @@ def handler(catchall_path=None, format='json-pretty'):
             return flask.make_response('params supplied, endpoint {0} doesn\'t take params'.format(flask.request.endpoint), 400)
         argdict = {}
 
+    # Extensions override Accept: headers override defaults
+    if not format:
+        if 'application/json' in flask.request.accept_mimetypes.values():
+            format = 'json'
+        elif 'application/xml' in flask.request.accept_mimetypes.values():
+            format = 'xml'
+        else:
+            format = 'json-pretty'
+
     argdict['format'] = format
     argdict['module'] = urldict['module']
     argdict['perm'] = urldict['perm']
@@ -149,8 +158,7 @@ def handler(catchall_path=None, format='json-pretty'):
                                    format(outs, ret), 500)
 
     response = flask.make_response(outbuf)
-    # XXX probably want application/<format> here
-    response.headers['Content-Type'] = 'text/plain'
+    response.headers['Content-Type'] = 'application/' + format.replace('-pretty','')
     return response
 
 # XXX this is done globally, and cluster connection kept; there
