@@ -112,12 +112,13 @@ def handler(catchall_path=None, format='json-pretty'):
 
     # if there are parameters for this endpoint, process them
     if paramsig:
-        args = []
+        args = {}
         for k, l in flask.request.args.iterlists():
             # allow only single-valued args
+            # XXX is this correct?  what about, say, log, or crush?
             if len(l) > 1:
-                return flask.make_response('param {0} has more than one arg {1}'.format(k, l), 400)
-            args.append((k, l[0]))
+                return flask.make_response('param {0} has >1 arg {1}'.format(k, l), 400)
+            args[k] = l[0]
 
         # is this a valid set of params?
         try:

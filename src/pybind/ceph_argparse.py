@@ -664,19 +664,18 @@ def validate_one(arg, desc, partial=False):
     validate_one(arg, desc, partial=False)
 
     validate arg against the constructed instance of the type in desc.
-    arg may be a single string or may be a list or tuple, implying
-    name=value.  In the tuple/list case, name must match and value must
-    be a valid value for the type; if value is empty, it is assumed to
-    be identical to name.
+    arg may be a single string or may be a dict of name=value.  In the
+    dict case, name must match and value must be a valid value for the
+    type; if value is empty, it is assumed to be identical to name.
 
     Raises exception of base type ArgumentError if bad arg/name given.
     Otherwise, True return means that desc.instance.val will contain
     the validated value (in an instance of the appropriate type).
     """
-    if isinstance(arg, tuple) or isinstance(arg, list):
-        if len(arg) != 2:
-            raise ArgumentError('Argument tuple not of length 2')
-        name, word = arg
+    if isinstance(arg, dict):
+        if len(arg) != 1:
+            raise ArgumentError('Bad argument dict: not of length 1')
+        name, word = arg.items()
         if name != desc.name:
             raise ArgumentError('Argument name {} != {}'.format(name, desc.name))
         # allow params like "detail=detail" to be submitted as name-only
@@ -746,15 +745,19 @@ def validate(args, signature, partial=False):
     in this case there are no exceptions raised.
 
     """
-    myargs = args[:]
+    myargs = copy.deepcopy(args)
     mysig = copy.deepcopy(signature)
     d = dict()
     for desc in mysig:
         setattr(desc, 'numseen', 0)
         while desc.numseen < desc.n:
-            if myargs:
-                myarg = myargs.pop(0)
-            else:
+            # get either the value matching key 'desc.name' or the next arg in
+            # the non-dict list
+            if isinstance(myargs, dict):
+                myarg = myargs.pop(desc.name, None)
+            elif myargs:
+                myarg = list.pop(0)
+            if not myarg:
                 # out of arguments
                 if desc.req:
                     if desc.N and desc.numseen < 1:
