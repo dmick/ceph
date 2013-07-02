@@ -92,6 +92,7 @@ def handler(catchall_path=None, format=None):
     else:
         ep = flask.request.endpoint.replace('.<format>', '')
 
+    # demand that endpoint begin with BASEURL
     if ep[0] != '/':
         ep = '/' + ep
     if not ep.startswith(BASEURL):
@@ -137,8 +138,10 @@ def handler(catchall_path=None, format=None):
         except Exception as e:
             return flask.make_response(str(e) + '\n', 400)
     else:
+        # no parameters for this endpoint; complain if args are supplied
         if flask.request.args:
-            return flask.make_response('params supplied, endpoint {0} doesn\'t take params'.format(flask.request.endpoint), 400)
+            return flask.make_response('endpoint {0} doesn\'t take params'.\
+                format(flask.request.endpoint), 400)
         argdict = {}
 
     # Extensions override Accept: headers override defaults
@@ -157,7 +160,7 @@ def handler(catchall_path=None, format=None):
     app.logger.debug('sending command prefix %s argdict %s', prefix, argdict)
     ret, outbuf, outs = json_command(cluster, prefix=prefix, argdict=argdict)
     if ret:
-        return flask.make_response('error processing command: {0} ({1})'.\
+        return flask.make_response('500 Error processing command: {0} ({1})'.\
                                    format(outs, ret), 500)
 
     response = flask.make_response(outbuf)
@@ -235,9 +238,6 @@ def log_request():
     app.logger.info(flask.request.url + " from " + flask.request.remote_addr + " " + flask.request.user_agent.string)
     app.logger.debug("Accept: %s", flask.request.accept_mimetypes.values())
 
-#
-# URL-handling functions
-#
 
 @app.route('/')
 def root_redir():
