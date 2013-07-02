@@ -99,7 +99,14 @@ def handler(catchall_path=None, format='json-pretty'):
 
     # show "match as much as you gave me" help for unknown endpoints
     if not ep in urls:
-        return show_human_help(prefix)
+        helptext = show_human_help(prefix)
+        if helptext:
+            resp = flask.make_response(helptext, 400)
+            resp.headers['Content-Type'] = 'text/html'
+            return resp
+        else:
+            return flask.make_response('400 Invalid endpoint {0}'.\
+                format(ep), 400)
 
     urldict = urls[ep]
     paramsig = urldict['paramsig']
@@ -269,9 +276,10 @@ def show_human_help(prefix):
             s += ''.join(line)
 
     s += '</table></body></html>'
-    resp = flask.make_response(s)
-    resp.headers['Content-Type'] = 'text/html'
-    return resp
+    if line:
+        return s
+    else:
+        return ''
 
 @app.errorhandler(404)
 def page_not_found(error):
