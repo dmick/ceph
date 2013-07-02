@@ -756,7 +756,7 @@ def validate(args, signature, partial=False):
             if isinstance(myargs, dict):
                 myarg = myargs.pop(desc.name, None)
             elif myargs:
-                myarg = list.pop(0)
+                myarg = myargs.pop(0)
             if not myarg:
                 # out of arguments
                 if desc.req:
