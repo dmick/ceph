@@ -42,6 +42,7 @@ app = flask.Flask('ceph-rest-api')
 app.config.from_object('apicfg')
 BASEURL = app.config['BASEURL']
 LOGLEVEL = app.config.get('LOGLEVEL', 'warning')
+LOGFILE = app.config.get('LOGFILE', 'api.log')
 
 loglevels = {
     'critical':logging.CRITICAL,
@@ -53,6 +54,8 @@ loglevels = {
 
 app.logger.addHandler(WatchedFileHandler('/tmp/api.log'))
 app.logger.setLevel(loglevels[LOGLEVEL.lower()])
+for h in app.logger.handlers: 
+    h.setFormatter(logging.Formatter('%(asctime)s %(name)s %(levelname)s: %(message)s'))
 
 cluster = None
 urls = {}
