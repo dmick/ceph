@@ -61,6 +61,69 @@ cluster = None
 urls = {}
 sigdict = {}
 
+# XXX this is done globally, and cluster connection kept; there
+# are facilities to pass around global info to requests and to
+# tear down connections between requests if it becomes important
+
+def cluster_setup():
+    """
+    Initialize the running instance.  Open the cluster, get the command
+    signatures, stuff them away in the urls dict, which maps
+    <endpoint_url> -> {'paramsig':<params signature>, 'help':<helptext>}
+    """
+
+    global cluster, sigdict
+    cluster = rados.Rados(name='client.admin', conffile='')
+    # rem_args = cluster.parse_argv(more_args)
+    cluster.connect()
+    ret, outbuf, outs = json_command(cluster, prefix='get_command_descriptions')
+    if ret:
+        app.logger.error('Can\'t contact cluster for command descriptions: %s', outs)
+        # XXX better error exit path?
+        sys.exit(1)
+    try:
+        sigdict = parse_json_funcsigs(outbuf, 'rest')
+    except Exception as e:
+        app.logger.error('Can\'t parse command descriptions: %s', e)
+        sys.exit(1)
+    # sigdict maps "cmdNNN" to a dict containing:
+    # 'sig', an array of argdescs
+    # 'help', the helptext
+    # 'module', the Ceph module this command relates to
+    # 'perm', a 'rwx*' string representing required permissions, and also
+    #    a hint as to whether this is a GET or POST/PUT operation
+    # 'avail', a comma-separated list of strings of consumers that should
+    #    display this command (filtered by parse_json_funcsigs() above)
+    global urls
+    urls = {}
+    for cmdnum, cmddict in sigdict.iteritems():
+        cmdsig = cmddict['sig']
+        url, params = generate_url_and_params(cmdsig)
+        if url in urls:
+            continue
+        else:
+            perm = cmddict['perm']
+            urldict = {'paramsig':params,
+                       'help':cmddict['help'],
+                       'module':cmddict['module'],
+                       'perm':perm,
+                      }
+            method_dict = {'r':['GET'],
+                       'w':['PUT', 'DELETE']}
+            for k in method_dict.iterkeys():
+                if k in perm:
+                    methods = method_dict[k]
+            app.add_url_rule(url, url, handler, methods=methods)
+            urls[url] = urldict
+
+            url += '.<format>'
+            app.add_url_rule(url, url, handler)
+            urls[url] = urldict
+    app.logger.debug("urls added: %d", len(urls))
+
+    app.add_url_rule('/<path:catchall_path>', '/<path:catchall_path>', handler, methods=['GET', 'PUT'])
+
+
 def generate_url_and_params(sig):
     """
     Digest command signature from cluster; generate an absolute
@@ -81,6 +144,77 @@ def generate_url_and_params(sig):
         else:
             params.append(desc)
     return BASEURL + url, params
+
+
+def concise_sig_for_uri(sig):
+    """
+    Return a generic description of how one would send a REST request for sig
+    """
+    prefix = []
+    args = []
+    for d in sig:
+        if d.t == CephPrefix:
+            prefix.append(d.instance.prefix)
+        else:
+            args.append(d.name + '=' + str(d))
+    sig = '/'.join(prefix)
+    if args:
+        sig += '?' + '&'.join(args)
+    return sig
+
+def show_human_help(prefix):
+    """
+    Dump table showing commands matching prefix
+    """
+    # XXX this really needs to be a template
+    #s = '<html><body><style>.colhalf { width: 50%;} body{word-wrap:break-word;}</style>'
+    #s += '<table border=1><col class=colhalf /><col class=colhalf />'
+    #s += '<th>Possible commands:</th>'
+    # XXX the above mucking with css doesn't cause sensible columns.
+    s = '<html><body><table border=1><th>Possible commands:</th><th>Method</th><th>Description</th>'
+
+    global sigdict
+    possible = []
+    permmap = {'r':'GET', 'rw':'PUT'}
+    line = ''
+    for cmdsig in sorted(sigdict.itervalues(), cmp=descsort):
+        concise = concise_sig(cmdsig['sig'])
+        if concise.startswith(prefix):
+            line = ['<tr><td>']
+            wrapped_sig = textwrap.wrap(concise_sig_for_uri(cmdsig['sig']), 40)
+            for sigline in wrapped_sig:
+                line.append(flask.escape(sigline) + '\n')
+            line.append('</td><td>')
+            line.append(permmap[cmdsig['perm']])
+            line.append('</td><td>')
+            line.append(flask.escape(cmdsig['help']))
+            line.append('</td></tr>\n')
+            s += ''.join(line)
+
+    s += '</table></body></html>'
+    if line:
+        return s
+    else:
+        return ''
+
+@app.before_request
+def log_request():
+    """
+    For every request, log it.  XXX Probably overkill for production
+    """
+    app.logger.info(flask.request.url + " from " + flask.request.remote_addr + " " + flask.request.user_agent.string)
+    app.logger.debug("Accept: %s", flask.request.accept_mimetypes.values())
+
+
+@app.route('/')
+def root_redir():
+    return flask.redirect(BASEURL)
+
+
+@app.errorhandler(404)
+def page_not_found(error):
+    return flask.make_response('page not found: {0} error {1}'.format(flask.request.endpoint, error)), 404
+
 
 def handler(catchall_path=None, format=None):
     """
@@ -166,146 +300,12 @@ def handler(catchall_path=None, format=None):
     response = flask.make_response(outbuf)
     response.headers['Content-Type'] = 'application/' + format.replace('-pretty','')
     return response
-
-# XXX this is done globally, and cluster connection kept; there
-# are facilities to pass around global info to requests and to
-# tear down connections between requests if it becomes important
-
-def cluster_setup():
-    """
-    Initialize the running instance.  Open the cluster, get the command
-    signatures, stuff them away in the urls dict, which maps
-    <endpoint_url> -> {'paramsig':<params signature>, 'help':<helptext>}
-    """
-
-    global cluster, sigdict
-    cluster = rados.Rados(name='client.admin', conffile='')
-    # rem_args = cluster.parse_argv(more_args)
-    cluster.connect()
-    ret, outbuf, outs = json_command(cluster, prefix='get_command_descriptions')
-    if ret:
-        app.logger.error('Can\'t contact cluster for command descriptions: %s', outs)
-        # XXX better error exit path?
-        sys.exit(1)
-    try:
-        sigdict = parse_json_funcsigs(outbuf, 'rest')
-    except Exception as e:
-        app.logger.error('Can\'t parse command descriptions: %s', e)
-        sys.exit(1)
-    # sigdict maps "cmdNNN" to a dict containing:
-    # 'sig', an array of argdescs
-    # 'help', the helptext
-    # 'module', the Ceph module this command relates to
-    # 'perm', a 'rwx*' string representing required permissions, and also
-    #    a hint as to whether this is a GET or POST/PUT operation
-    # 'avail', a comma-separated list of strings of consumers that should
-    #    display this command (filtered by parse_json_funcsigs() above)
-    global urls
-    urls = {}
-    for cmdnum, cmddict in sigdict.iteritems():
-        cmdsig = cmddict['sig']
-        url, params = generate_url_and_params(cmdsig)
-        if url in urls:
-            continue
-        else:
-            perm = cmddict['perm']
-            urldict = {'paramsig':params,
-                       'help':cmddict['help'],
-                       'module':cmddict['module'],
-                       'perm':perm,
-                      }
-            method_dict = {'r':['GET'],
-                       'w':['PUT', 'DELETE']}
-            for k in method_dict.iterkeys():
-                if k in perm:
-                    methods = method_dict[k]
-            app.add_url_rule(url, url, handler, methods=methods)
-            urls[url] = urldict
-
-            url += '.<format>'
-            app.add_url_rule(url, url, handler)
-            urls[url] = urldict
-    app.logger.debug("urls added: %d", len(urls))
-
-    app.add_url_rule('/<path:catchall_path>', '/<path:catchall_path>', handler, methods=['GET', 'PUT'])
-
-
-@app.before_request
-def log_request():
-    """
-    For every request, log it.  XXX Probably overkill for production
-    """
-    app.logger.info(flask.request.url + " from " + flask.request.remote_addr + " " + flask.request.user_agent.string)
-    app.logger.debug("Accept: %s", flask.request.accept_mimetypes.values())
-
-
-@app.route('/')
-def root_redir():
-    return flask.redirect(BASEURL)
-
-def concise_sig_for_uri(sig):
-    """
-    Return a generic description of how one would send a REST request for sig
-    """
-    prefix = []
-    args = []
-    for d in sig:
-        if d.t == CephPrefix:
-            prefix.append(d.instance.prefix)
-        else:
-            args.append(d.name + '=' + str(d))
-    sig = '/'.join(prefix)
-    if args:
-        sig += '?' + '&'.join(args)
-    return sig
-
-def show_human_help(prefix):
-    """
-    Dump table showing commands matching prefix
-    """
-    # XXX this really needs to be a template
-    #s = '<html><body><style>.colhalf { width: 50%;} body{word-wrap:break-word;}</style>'
-    #s += '<table border=1><col class=colhalf /><col class=colhalf />'
-    #s += '<th>Possible commands:</th>'
-    # XXX the above mucking with css doesn't cause sensible columns.
-    s = '<html><body><table border=1><th>Possible commands:</th><th>Method</th><th>Description</th>'
-
-    global sigdict
-    possible = []
-    permmap = {'r':'GET', 'rw':'PUT'}
-    line = ''
-    for cmdsig in sorted(sigdict.itervalues(), cmp=descsort):
-        concise = concise_sig(cmdsig['sig'])
-        if concise.startswith(prefix):
-            line = ['<tr><td>']
-            wrapped_sig = textwrap.wrap(concise_sig_for_uri(cmdsig['sig']), 40)
-            for sigline in wrapped_sig:
-                line.append(flask.escape(sigline) + '\n')
-            line.append('</td><td>')
-            line.append(permmap[cmdsig['perm']])
-            line.append('</td><td>')
-            line.append(flask.escape(cmdsig['help']))
-            line.append('</td></tr>\n')
-            s += ''.join(line)
-
-    s += '</table></body></html>'
-    if line:
-        return s
-    else:
-        return ''
-
-@app.errorhandler(404)
-def page_not_found(error):
-    return flask.make_response('page not found: {0} error {1}'.format(flask.request.endpoint, error)), 404
-
-cluster_setup()
-
-
 #
 # main
 #
 
 if __name__ == '__main__':
+    cluster_setup()
     addr = app.config.get('LISTENADDR', '0.0.0.0')
     port = app.config.get('PORT', 5000)
 
