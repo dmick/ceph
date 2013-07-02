@@ -385,7 +385,7 @@ COMMAND("osd crush create-or-move " \
 	"name=weight,type=CephFloat,range=0.0 " \
 	"name=args,type=CephString,n=N", \
 	"create entry or move existing entry for <name> <weight> at/to location <args>", \
-	"osd", "W", "cli,rest")
+	"osd", "rw", "cli,rest")
 COMMAND("osd crush move " \
 	"name=id,type=CephOsdName " \
 	"name=args,type=CephString,n=N", \
