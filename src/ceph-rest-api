@@ -132,7 +132,7 @@ def handler(catchall_path=None, format=None):
         try:
             argdict = validate(args, paramsig)
         except Exception as e:
-            return show_human_help(prefix)
+            return flask.make_response(str(e) + '\n', 400)
     else:
         if flask.request.args:
             return flask.make_response('params supplied, endpoint {0} doesn\'t take params'.format(flask.request.endpoint), 400)
