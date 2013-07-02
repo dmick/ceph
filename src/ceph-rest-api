@@ -38,7 +38,7 @@ from ceph_argparse import *
 #
 # Globals
 #
-app = flask.Flask(__name__)
+app = flask.Flask('ceph-rest-api')
 app.config.from_object('apicfg')
 BASEURL = app.config['BASEURL']
 LOGLEVEL = app.config.get('LOGLEVEL', 'warning')
