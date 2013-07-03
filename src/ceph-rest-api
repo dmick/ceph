@@ -108,14 +108,21 @@ def load_conf(conffile=None):
         with contextlib.closing(f):
             return parse(f)
 
+    # XXX this should probably use cluster name
     if conffile:
         return load(conffile)
     elif 'CEPH_CONF' in os.environ:
-        return load(os.environ['CEPH_CONF'])
-    elif os.exists('/etc/ceph/ceph.conf'):
-        return load('/etc/ceph/ceph.conf')
+        conffile = os.environ['CEPH_CONF']
+    elif os.path.exists('/etc/ceph/ceph.conf'):
+        conffile = '/etc/ceph/ceph.conf'
+    elif os.path.exists(os.path.expanduser('~/.ceph/ceph.conf')):
+        conffile = os.path.expanduser('~/.ceph/ceph.conf')
+    elif os.path.exists('ceph.conf'):
+        conffile = 'ceph.conf'
     else:
         return None
+
+    return load(conffile)
 
 def get_conf(cfg, key):
     try:
