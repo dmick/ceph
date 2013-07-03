@@ -12,7 +12,16 @@ set -e
 OUT=/tmp/cephtest.output
 HDR=/tmp/cephtest.headers
 
-BASEURL="http://localhost:5000/api/v0.1/"
+BASEURL=${BASEURL:-"http://localhost:5000/api/v0.1/"}
+
+#
+# expect a response code and valid output
+#
+# expect <url> <method> <expected-result-code> <expected-mime-type> <extrahdrs>
+#
+# will use <method> (GET or PUT) to fetch <url>, and expect the result
+# <resultcode>, output in format <expected-mime-type> (xml or json,
+# validated).  <extrahdrs> are added to the request if given.
 
 expect()
 {
@@ -23,17 +32,17 @@ expect()
 	added_hdrs=$4
 	curl -s -o $OUT -H "$4" --dump-header $HDR $url
 	if grep -q "^HTTP/1.[01] $code" < $HDR && 
-	   grep -q -i "^Content-Type: $contentype" < $HDR; then
+	   grep -q -i "^Content-Type: application/$contentype" < $HDR; then
 		:
 	else
-		echo "expected $code, $contenttype: headers:\n" >&2
+		echo "expected $code, application/$contenttype: headers:\n" >&2
 		cat $HDR >&2
 		return 1
 	fi
 	
-	if [ "$contenttype" == "application/json" ] ; then
+	if [ "$contenttype" == "json" ] ; then
 		validate_cmd="json_xs -t null"
-	elif [ "$contenttype" == "application/xml" ] ; then
+	elif [ "$contenttype" == "xml" ] ; then
 		validate_cmd="xmllint --noout -"
 	fi
 	if [ -n "$validate_cmd" ] ; then
@@ -51,10 +60,10 @@ expect()
 #
 
 set -x
-expect auth/export 200 application/json
-expect auth/export.json 200 application/json
-expect auth/export.xml 200 application/xml
-expect auth/export 200 application/xml "Accept: application/xml"
+expect auth/export 200 json
+expect auth/export.json 200 json
+expect auth/export.xml 200 xml
+expect auth/export 200 xml "Accept: application/xml"
 exit 0
 
 ceph auth add client.xx mon allow osd "allow *"
