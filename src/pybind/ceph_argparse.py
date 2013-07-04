@@ -733,45 +733,59 @@ def validate(args, signature, partial=False):
 
     args is a list of either words or k,v pairs representing a possible
     command input following format of signature.  Runs a validation; no
-    exception means it's OK.  Return a dict containing all arguments named
-    by their descriptor name (with duplicate args per name accumulated
-    into a space-separated value).
+    exception means it's OK.  Return a dict containing all arguments keyed
+    by their descriptor name, with duplicate args per name accumulated
+    into a list (or space-separated value for CephPrefix).
 
-    Mismatches of prefix are attempted to be ignored, as this probably
-    just means the search hasn't hit the correct command.  Mismatches of
-    non-prefix arguments are treated as fatal exceptions and reraised.
+    Mismatches of prefix are non-fatal, as this probably just means the
+    search hasn't hit the correct command.  Mismatches of non-prefix
+    arguments are treated as fatal, and an exception raised.
 
-    If partial is set, allow partial matching (with partial dict returned);
-    in this case there are no exceptions raised.
-
+    This matching is modified if partial is set: allow partial matching
+    (with partial dict returned); in this case, there are no exceptions
+    raised.
     """
+
     myargs = copy.deepcopy(args)
     mysig = copy.deepcopy(signature)
     d = dict()
     for desc in mysig:
         setattr(desc, 'numseen', 0)
         while desc.numseen < desc.n:
+            myarg = None
+            if not myargs:
+                break
             # get either the value matching key 'desc.name' or the next arg in
             # the non-dict list
-            myarg = None
             if isinstance(myargs, dict):
                 myarg = myargs.pop(desc.name, None)
-            elif myargs:
+                # Hack, or clever?  If value is a list, keep the first element,
+                # push rest back onto myargs for later processing.
+                # Could process list directly, but nesting here is already bad
+                if myarg and isinstance(myarg, list):
+                    myargs[desc.name] = myarg[1:]
+                    myarg = myarg[0]
+            else:
                 myarg = myargs.pop(0)
-            if not myarg:
-                # out of arguments
-                if desc.req:
-                    if desc.N and desc.numseen < 1:
-                        # wanted N, didn't even get 1
-                        if partial:
-                            return d
-                        raise ArgumentNumber('saw {0} of {1}, expected at least 1'.format(desc.numseen, desc))
-                    elif not desc.N and desc.numseen < desc.n:
-                        # wanted n, got too few
-                        if partial:
-                            return d
-                        raise ArgumentNumber('saw {0} of {1}, expected {2}'.format(desc.numseen, desc, desc.n))
+                if myarg and isinstance(myarg, list):
+                    myargs = myarg[1:] + myargs
+                    myarg = myarg[0]
+
+            # out of arguments for a required param?
+            if not myarg and desc.req:
+                if desc.N and desc.numseen < 1:
+                    # wanted N, didn't even get 1
+                    if partial:
+                        return d
+                    raise ArgumentNumber('saw {0} of {1}, expected at least 1'.format(desc.numseen, desc))
+                elif not desc.N and desc.numseen < desc.n:
+                    # wanted n, got too few
+                    if partial:
+                        return d
+                    raise ArgumentNumber('saw {0} of {1}, expected {2}'.format(desc.numseen, desc, desc.n))
                 break
+
+            # not out of args; validate this one
             try:
                 validate_one(myarg, desc)
                 valid = True
@@ -781,7 +795,7 @@ def validate(args, signature, partial=False):
                 else:
                     raise e
             if not valid:
-                # argument mismatch, not prefix
+                # argument mismatch
                 # if not required, just push back for the next one
                 if not desc.req:
                     myargs.insert(0, myarg)
@@ -792,6 +806,7 @@ def validate(args, signature, partial=False):
                         return d
                     raise ArgumentFormat('{0} not valid argument {1}: {2}'.format(str(myarg), desc, e))
 
+            # valid arg acquired.  Store in dict, as a list if multivalued
             if desc.N:
                 # value should be a list
                 if desc.name in d:
@@ -799,7 +814,7 @@ def validate(args, signature, partial=False):
                 else:
                     d[desc.name] = [desc.instance.val]
             elif (desc.t == CephPrefix) and (desc.name in d):
-                # value should be a space-joined concatenation
+                # prefixes' values should be a space-joined concatenation
                 d[desc.name] += ' ' + desc.instance.val
             else:
                 # if first CephPrefix or any other type, just set it
