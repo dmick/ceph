@@ -361,11 +361,10 @@ def handler(catchall_path=None, format=None):
     if paramsig:
         args = {}
         for k, l in flask.request.args.iterlists():
-            # allow only single-valued args
-            # XXX is this correct?  what about, say, log, or crush?
-            if len(l) > 1:
-                return flask.make_response('param {0} has >1 arg {1}'.format(k, l), 400)
-            args[k] = l[0]
+            if len(l) == 1:
+                args[k] = l[0]
+            else:
+                args[k] = l
 
         # is this a valid set of params?
         try:
