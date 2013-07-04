@@ -216,7 +216,7 @@ def api_setup():
             app.add_url_rule(url, url, handler, methods=methods)
             glob.urls[url] = urldict
 
-            url += '.<format>'
+            url += '.<fmt>'
             app.add_url_rule(url, url, handler)
             glob.urls[url] = urldict
     app.logger.debug("urls added: %d", len(glob.urls))
@@ -311,27 +311,51 @@ def log_request():
 def root_redir():
     return flask.redirect(glob.baseurl)
 
+def make_response(fmt, output, statusmsg, errorcode):
+    """
+    If formatted output, cobble up a response object that contains the
+    output and status wrapped in enclosing objects; if nonformatted, just
+    use output.  Return HTTP status errorcode in any event.
+    """
+    response = output
+    if fmt:
+        if 'json' in fmt:
+            response = '{{"output":{0}, "status":"{1}"}}'.\
+                format(output or [], statusmsg)
+        elif 'xml' in fmt:
+            response = '''
+<response>
+  <output>
+    {0}
+  </output>
+  <status>{1}</status>
+</response>'''.format(output, statusmsg)
 
-@app.errorhandler(404)
-def page_not_found(error):
-    return flask.make_response('page not found: {0} error {1}'.format(flask.request.endpoint, error)), 404
+    return flask.make_response(response, errorcode)
 
-
-def handler(catchall_path=None, format=None):
+def handler(catchall_path=None, fmt=None):
     """
     Main endpoint handler; generic for every endpoint
     """
 
     if (catchall_path):
-        ep = catchall_path.replace('.<format>', '')
+        ep = catchall_path.replace('.<fmt>', '')
     else:
-        ep = flask.request.endpoint.replace('.<format>', '')
+        ep = flask.request.endpoint.replace('.<fmt>', '')
 
-    # demand that endpoint begin with glob.baseurl
     if ep[0] != '/':
         ep = '/' + ep
+
+    # Extensions override Accept: headers override defaults
+    if not fmt:
+        if 'application/json' in flask.request.accept_mimetypes.values():
+            fmt = 'json'
+        elif 'application/xml' in flask.request.accept_mimetypes.values():
+            fmt = 'xml'
+
+    # demand that endpoint begin with glob.baseurl
     if not ep.startswith(glob.baseurl):
-        return flask.make_response('404 Page not found\n<a href="{0}"><BR>Ceph REST API</a>'.format(glob.baseurl), 404)
+        return make_response(fmt, '', 'Page not found', 404)
 
     relative_endpoint = ep[len(glob.baseurl)+1:]
     prefix = ' '.join(relative_endpoint.split('/')).strip()
@@ -344,8 +368,7 @@ def handler(catchall_path=None, format=None):
             resp.headers['Content-Type'] = 'text/html'
             return resp
         else:
-            return flask.make_response('400 Invalid endpoint {0}'.\
-                format(ep), 400)
+            return make_response(fmt, '', 'Invalid endpoint ' + ep, 400)
 
     urldict = glob.urls[ep]
     paramsig = urldict['paramsig']
@@ -370,24 +393,15 @@ def handler(catchall_path=None, format=None):
         try:
             argdict = validate(args, paramsig)
         except Exception as e:
-            return flask.make_response(str(e) + '\n', 400)
+            return make_response(fmt, '', str(e) + '\n', 400)
     else:
         # no parameters for this endpoint; complain if args are supplied
         if flask.request.args:
-            return flask.make_response('endpoint {0} doesn\'t take params'.\
-                format(flask.request.endpoint), 400)
+            return make_response(fmt, '', ep + 'takes no params', 400)
         argdict = {}
 
-    # Extensions override Accept: headers override defaults
-    if not format:
-        if 'application/json' in flask.request.accept_mimetypes.values():
-            format = 'json'
-        elif 'application/xml' in flask.request.accept_mimetypes.values():
-            format = 'xml'
-        else:
-            format = 'json-pretty'
 
-    argdict['format'] = format
+    argdict['format'] = fmt or 'plain'
     argdict['module'] = urldict['module']
     argdict['perm'] = urldict['perm']
 
@@ -395,12 +409,16 @@ def handler(catchall_path=None, format=None):
     ret, outbuf, outs = json_command(glob.cluster, prefix=prefix,
                                      argdict=argdict)
     if ret:
-        return flask.make_response('500 Error processing command: {0} ({1})'.\
-                                   format(outs, ret), 500)
+        return make_response(fmt, '', 'Error: {0} ({1})'.format(outs, ret), 500)
 
-    response = flask.make_response(outbuf)
-    response.headers['Content-Type'] = 'application/' + format.replace('-pretty','')
+    response = make_response(fmt, outbuf, 'OK', 200)
+    if fmt:
+        contenttype = 'application/' + fmt.replace('-pretty','')
+    else:
+        contenttype = 'text/plain'
+    response.headers['Content-Type'] = contenttype
     return response
+
 #
 # main
 #
