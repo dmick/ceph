@@ -409,9 +409,9 @@ def handler(catchall_path=None, fmt=None):
     ret, outbuf, outs = json_command(glob.cluster, prefix=prefix,
                                      argdict=argdict)
     if ret:
-        return make_response(fmt, '', 'Error: {0} ({1})'.format(outs, ret), 500)
+        return make_response(fmt, '', 'Error: {0} ({1})'.format(outs, ret), 400)
 
-    response = make_response(fmt, outbuf, 'OK', 200)
+    response = make_response(fmt, outbuf, outs or 'OK', 200)
     if fmt:
         contenttype = 'application/' + fmt.replace('-pretty','')
     else:
