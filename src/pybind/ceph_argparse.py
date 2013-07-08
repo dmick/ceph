@@ -262,8 +262,7 @@ class CephEntityAddr(CephIPAddr):
     """
     def valid(self, s, partial=False):
         ip, nonce = s.split('/')
-        if not super(self.__class__, self).valid(ip):
-            raise ArgumentValid('CephEntityAddr {0}: ip address invalid'.format(s))
+        super(self.__class__, self).valid(ip)
         self.val = s
 
     def __str__(self):
