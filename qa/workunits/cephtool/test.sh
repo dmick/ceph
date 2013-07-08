@@ -39,7 +39,7 @@ ceph auth get-key client.xx
 ceph auth print-key client.xx
 ceph auth print_key client.xx
 ceph auth caps client.xx osd "allow rw"
-expect_false "(ceph auth get client.xx | grep caps | grep mon)"
+expect_false "ceph auth get client.xx | grep caps | grep mon"
 ceph auth get client.xx | grep osd | grep "allow rw"
 ceph auth export | grep client.xx
 ceph auth export -o authfile
