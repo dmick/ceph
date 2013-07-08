@@ -792,7 +792,8 @@ def validate(args, signature, partial=False):
                 valid = True
             except ArgumentPrefix:
                 continue
-            except ArgumentError:
+            except Exception as e:
+                # ArgumentError or otherwise
                 valid = False
             if not valid:
                 # argument mismatch
