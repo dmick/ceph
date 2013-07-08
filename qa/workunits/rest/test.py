@@ -19,7 +19,7 @@ def fail(r, msg):
     print >> sys.stderr, 'Headers: ', r.headers
     sys.exit(1)
 
-def expect(url, method, respcode, contenttype='json', extra_hdrs=None):
+def expect(url, method, respcode, contenttype, extra_hdrs=None):
 
     fdict = {'get':requests.get, 'put':requests.put}
     f = fdict[method.lower()]
@@ -29,11 +29,15 @@ def expect(url, method, respcode, contenttype='json', extra_hdrs=None):
         fail(r, 'expected {0}, got "{1}"'.format(respcode, r.status_code))
     r_contenttype = r.headers['content-type']
 
-    # allow null contenttype to avoid checking
-    if contenttype:
-        if r_contenttype != 'application/' + contenttype:
-            fail(r,  'expected {0}, got "{1}"'.\
-                format(contenttype, r_contenttype))
+    if contenttype in ['json', 'xml']:
+        contenttype = 'application/' + contenttype
+    else:
+        contenttype = 'text/' + contenttype
+
+    if r_contenttype != contenttype:
+        fail(r,  'expected {0}, got "{1}"'.format(contenttype, r_contenttype))
+
+    if contenttype.startswith('application'):
 
         if r_contenttype == 'application/json':
             # may raise
@@ -51,14 +55,24 @@ def expect(url, method, respcode, contenttype='json', extra_hdrs=None):
     return r
 
 if __name__ == '__main__':
-    expect('auth/export', 'GET', 200)
-    expect('auth/export.json', 'GET', 200)
+    expect('auth/export', 'GET', 200, 'plain')
+    expect('auth/export.json', 'GET', 200, 'json')
     expect('auth/export.xml', 'GET', 200, 'xml')
-    expect('auth/export.xml', 'GET', 200, 'xml', {'accept':'application/xml'})
+    expect('auth/export', 'GET', 200, 'json', {'accept':'application/json'})
+    expect('auth/export', 'GET', 200, 'xml', {'accept':'application/xml'})
 
-    expect('auth/add?entity=client.xx&caps=mon&caps=allow&caps=osd&caps=allow *', 'PUT', 200, 'json')
-    # r = expect('auth/list', 'GET', 200)
+    expect('auth/add?entity=client.xx&caps=mon&caps=allow&caps=osd&caps=allow *', 'PUT', 200, 'json', {'accept':'application/json'})
+    # r = expect('auth/list', 'GET', 200, 'json')
     # assert('client.xx' in r['???']['???'])
     r = expect('auth/list', 'GET', 200, 'plain')
     assert('client.xx' in r.content)
+    r = expect('auth/get?entity=client.xx', 'GET', 200, 'plain')
+    found = 0
+    for l in r.content.split('\n'):
+        if 'caps' in l and 'mon' in l:
+            found += 1
+        if 'caps' in l and 'osd' in l:
+            found += 1
+    assert(found == 2)
+
     print 'OK'
