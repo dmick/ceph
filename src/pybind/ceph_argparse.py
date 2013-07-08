@@ -791,6 +791,8 @@ def validate(args, signature, partial=False):
             try:
                 validate_one(myarg, desc)
                 valid = True
+            except ArgumentPrefix:
+                continue
             except ArgumentError:
                 valid = False
             if not valid:
