@@ -753,8 +753,6 @@ def validate(args, signature, partial=False):
         setattr(desc, 'numseen', 0)
         while desc.numseen < desc.n:
             myarg = None
-            if not myargs:
-                break
             # get either the value matching key 'desc.name' or the next arg in
             # the non-dict list
             if isinstance(myargs, dict):
@@ -765,11 +763,15 @@ def validate(args, signature, partial=False):
                 if myarg and isinstance(myarg, list):
                     myargs[desc.name] = myarg[1:]
                     myarg = myarg[0]
-            else:
+            elif myargs:
                 myarg = myargs.pop(0)
                 if myarg and isinstance(myarg, list):
                     myargs = myarg[1:] + myargs
                     myarg = myarg[0]
+
+            # no arg, but not required?  March on
+            if not myarg and not desc.req:
+                break
 
             # out of arguments for a required param?
             if not myarg and desc.req:
@@ -789,11 +791,8 @@ def validate(args, signature, partial=False):
             try:
                 validate_one(myarg, desc)
                 valid = True
-            except Exception as e:
-                if isinstance(e, ArgumentPrefix):
-                    valid = False
-                else:
-                    raise e
+            except ArgumentError:
+                valid = False
             if not valid:
                 # argument mismatch
                 # if not required, just push back for the next one
