@@ -164,9 +164,7 @@ COMMAND("auth import", "auth import: read keyring file from input", \
 COMMAND("auth add " \
 	"name=entity,type=CephString " \
 	"name=caps,type=CephString,n=N,req=false", \
-	"add auth info for <entity> from input file, or random key if no input given, and/or any caps specified in the command")
-	"name=caps,type=CephString,n=N,req=false", \
-	"add auth info for <entity> from input file, or random key if no input given, and/or any caps specified in the command", \
+	"add auth info for <entity> from input file, or random key if no input given, and/or any caps specified in the command",
 	"auth", "rw", "cli,rest")
 COMMAND("auth get-or-create-key " \
 	"name=entity,type=CephString " \
@@ -191,15 +189,10 @@ COMMAND("auth del " \
 /*
  * Monitor commands (Monitor.cc)
  */
-<<<<<<< HEAD
-COMMAND("compact", "cause compaction of monitor's leveldb storage")
-COMMAND("scrub", "scrub the monitor stores")
-COMMAND("fsid", "show cluster FSID/UUID")
-=======
 COMMAND("compact", "cause compaction of monitor's leveldb storage", \
 	"mon", "rw", "cli,rest")
+COMMAND("scrub", "scrub the monitor stores", "mon", "rw", "cli,rest")
 COMMAND("fsid", "show cluster FSID/UUID", "mon", "r", "cli,rest")
->>>>>>> MonCommands: add new fields: modulename, perms, availability
 COMMAND("log name=logtext,type=CephString,n=N", \
 	"log supplied text to the monitor log", "mon", "rw", "cli,rest")
 COMMAND("injectargs " \
