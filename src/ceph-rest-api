@@ -34,6 +34,7 @@ import logging
 import logging.handlers
 import rados
 import textwrap
+import xml.etree.ElementTree
 
 import flask
 from ceph_argparse import *
@@ -320,16 +321,15 @@ def make_response(fmt, output, statusmsg, errorcode):
     response = output
     if fmt:
         if 'json' in fmt:
-            response = '{{"output":{0}, "status":"{1}"}}'.\
-                format(output or [], statusmsg)
+            response = json.dumps({"output":output or [], "status":statusmsg})
         elif 'xml' in fmt:
-            response = '''
-<response>
-  <output>
-    {0}
-  </output>
-  <status>{1}</status>
-</response>'''.format(output, statusmsg)
+            ET = xml.etree.ElementTree
+            resp_elem = ET.Element('response')
+            o = ET.SubElement(resp_elem, 'output')
+            o.text = output
+            s = ET.SubElement(resp_elem, 'status')
+            s.text = statusmsg
+            response = ET.tostring(resp_elem)
 
     return flask.make_response(response, errorcode)
 
