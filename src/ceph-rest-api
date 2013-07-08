@@ -42,7 +42,7 @@ from ceph_argparse import *
 # Globals
 #
 
-APPNAME = 'ceph-rest-api'
+APPNAME = '__main__'
 DEFAULT_BASEURL = '/api/v0.1'
 DEFAULT_ADDR = '0.0.0.0:5000'
 DEFAULT_LOG_LEVEL = 'warning'
