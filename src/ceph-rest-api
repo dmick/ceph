@@ -218,7 +218,7 @@ def api_setup():
             glob.urls[url] = urldict
 
             url += '.<fmt>'
-            app.add_url_rule(url, url, handler)
+            app.add_url_rule(url, url, handler, methods=methods)
             glob.urls[url] = urldict
     app.logger.debug("urls added: %d", len(glob.urls))
 
