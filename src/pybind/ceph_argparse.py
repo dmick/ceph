@@ -792,10 +792,7 @@ def validate(args, signature, partial=False):
             try:
                 validate_one(myarg, desc)
                 valid = True
-            except ArgumentPrefix:
-                continue
             except Exception as e:
-                # ArgumentError or otherwise
                 valid = False
             if not valid:
                 # argument mismatch
@@ -878,6 +875,8 @@ def validate_command(parsed_args, sigdict, args, verbose=False):
                         print >> sys.stderr, "did you mean {0}?\n\t{1}".\
                             format(concise_sig(sig), helptext)
                     pass
+                if found:
+                    break
 
         if not found:
             print >> sys.stderr, 'no valid command found; 10 closest matches:'
