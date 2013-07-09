@@ -573,7 +573,7 @@ bool AuthMonitor::preprocess_command(MMonCommand *m)
 	KeyRing kr;
 	kr.add(entity, eauth);
 	if (f)
-	  kr.encode_formatted(f.get(), rdata);
+	  kr.encode_formatted("auth", f.get(), rdata);
 	else
 	  kr.encode_plaintext(rdata);
 	ss << "export " << eauth;
@@ -584,7 +584,7 @@ bool AuthMonitor::preprocess_command(MMonCommand *m)
       }
     } else {
       if (f)
-	keyring.encode_formatted(f.get(), rdata);
+	keyring.encode_formatted("auth", f.get(), rdata);
       else
 	keyring.encode_plaintext(rdata);
 
@@ -600,7 +600,7 @@ bool AuthMonitor::preprocess_command(MMonCommand *m)
     } else {
       keyring.add(entity, entity_auth);
       if (f)
-	keyring.encode_formatted(f.get(), rdata);
+	keyring.encode_formatted("auth", f.get(), rdata);
       else
 	keyring.encode_plaintext(rdata);
       ss << "exported keyring for " << entity_name;
@@ -610,15 +610,34 @@ bool AuthMonitor::preprocess_command(MMonCommand *m)
 	     prefix == "auth print_key" ||
 	     prefix == "auth get-key") {
     EntityAuth auth;
+    if (entity_name.empty()) {
+      ss << "entity not specified";
+      r = -EINVAL;
+      goto done;
+    }
+
     if (!mon->key_server.get_auth(entity, auth)) {
       ss << "don't have " << entity;
       r = -ENOENT;
       goto done;
     }
-    ds << auth.key;
+    if (f) {
+      auth.key.encode_formatted("auth", f.get(), rdata);
+    } else {
+      auth.key.encode_plaintext(rdata);
+    }
     r = 0;
   } else if (prefix == "auth list") {
-    mon->key_server.list_secrets(ss, ds);
+    if (f) {
+      mon->key_server.encode_formatted("auth", f.get(), rdata);
+      f->flush(rdata);
+    } else {
+      mon->key_server.encode_plaintext(rdata);
+      if (rdata.length() > 0)
+        ss << "installed auth entries:" << std::endl;
+      else
+        ss << "no installed auth entries!" << std::endl;
+    }
     r = 0;
     goto done;
   } else {
@@ -676,6 +695,10 @@ bool AuthMonitor::prepare_command(MMonCommand *m)
 
   cmd_getval(g_ceph_context, cmdmap, "prefix", prefix);
 
+  string format;
+  cmd_getval(g_ceph_context, cmdmap, "format", format, string("plain"));
+  boost::scoped_ptr<Formatter> f(new_formatter(format));
+
   MonSession *session = m->get_session();
   if (!session ||
       (!mon->_allowed_command(session, cmdmap))) {
@@ -716,6 +739,11 @@ bool AuthMonitor::prepare_command(MMonCommand *m)
     //paxos->wait_for_commit(new Monitor::C_Command(mon, m, 0, rs, get_last_committed()));
     return true;
   } else if (prefix == "auth add") {
+    if (entity_name.empty()) {
+      ss << "entity not specified";
+      err = -EINVAL;
+      goto done;
+    }
     KeyServerData::Incremental auth_inc;
     auth_inc.name = entity;
     bufferlist bl = m->get_data();
@@ -778,11 +806,19 @@ bool AuthMonitor::prepare_command(MMonCommand *m)
       }
 
       if (prefix == "auth get-or-create-key") {
-	ds << entity_auth.key;
+        if (f) {
+          entity_auth.key.encode_formatted("auth", f.get(), rdata);
+        } else {
+          ds << entity_auth.key;
+        }
       } else {
 	KeyRing kr;
 	kr.add(entity, entity_auth.key);
-	kr.encode_plaintext(rdata);
+        if (f) {
+          kr.encode_formatted("auth", f.get(), rdata);
+        } else {
+          kr.encode_plaintext(rdata);
+        }
       }
       err = 0;
       goto done;
@@ -817,11 +853,19 @@ bool AuthMonitor::prepare_command(MMonCommand *m)
     push_cephx_inc(auth_inc);
 
     if (prefix == "auth get-or-create-key") {
-      ds << auth_inc.auth.key;
+      if (f) {
+        auth_inc.auth.key.encode_formatted("auth", f.get(), rdata);
+      } else {
+        ds << auth_inc.auth.key;
+      }
     } else {
       KeyRing kr;
       kr.add(entity, auth_inc.auth.key);
-      kr.encode_plaintext(rdata);
+      if (f) {
+        kr.encode_formatted("auth", f.get(), rdata);
+      } else {
+        kr.encode_plaintext(rdata);
+      }
     }
 
     rdata.append(ds);

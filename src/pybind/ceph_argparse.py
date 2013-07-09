@@ -752,6 +752,8 @@ def validate(args, signature, partial=False):
         setattr(desc, 'numseen', 0)
         while desc.numseen < desc.n:
             myarg = None
+            if not myargs:
+                break
             # get either the value matching key 'desc.name' or the next arg in
             # the non-dict list
             if isinstance(myargs, dict):

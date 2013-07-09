@@ -38,7 +38,6 @@ def expect(url, method, respcode, contenttype, extra_hdrs=None):
         fail(r,  'expected {0}, got "{1}"'.format(contenttype, r_contenttype))
 
     if contenttype.startswith('application'):
-
         if r_contenttype == 'application/json':
             # may raise
             try:

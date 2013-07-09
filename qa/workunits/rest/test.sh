@@ -4,7 +4,12 @@
 # calls
 
 
-set -e
+no_exit_on_error=0
+if [[ $1 == '--no-exit-on-error' ]]; then
+  no_exit_on_error=1
+fi
+
+[[ $no_exit_on_error -eq 0 ]] && set -e
 
 #OUT=/tmp/cephtest.output.$$
 #HDR=/tmp/cephtest.headers.$$
@@ -25,34 +30,61 @@ BASEURL=${BASEURL:-"http://localhost:5000/api/v0.1/"}
 
 expect()
 {
-	local url code contenttype
+	local url code contenttype expected_contenttype out_file
 	url=$(echo "${BASEURL}${1}")
 	code=$2
 	contenttype=$3
 	added_hdrs=$4
-	curl -s -o $OUT -H "$4" --dump-header $HDR $url
+        out_file=$OUT
+
+        [[ ! -z "$5" ]] && out_file=$5
+
+        expected_contenttype="application/$contenttype"
+        if [[ "$contenttype" == "plain" ]]; then
+          expected_contenttype="text/plain"
+        fi
+
+	curl -s -o $out_file -H "$4" --dump-header $HDR $url
 	if grep -q "^HTTP/1.[01] $code" < $HDR && 
-	   grep -q -i "^Content-Type: application/$contentype" < $HDR; then
+	   grep -q -i "^Content-Type: $expected_contentype" < $HDR; then
 		:
 	else
-		echo "expected $code, application/$contenttype: headers:\n" >&2
+		echo "expected $code, $expected_contenttype: headers:\n" >&2
 		cat $HDR >&2
 		return 1
 	fi
-	
+
+        validate_cmd=""
 	if [ "$contenttype" == "json" ] ; then
 		validate_cmd="json_xs -t null"
 	elif [ "$contenttype" == "xml" ] ; then
 		validate_cmd="xmllint --noout -"
 	fi
 	if [ -n "$validate_cmd" ] ; then
-		eval $validate_cmd < $OUT
+		eval $validate_cmd < $out_file
 		if [ $? != 0 ] ; then
 			echo "Invalid $contenttype output: " >&2
-			cat $OUT >&2
+			cat $out_file >&2
 			return 1
 		fi
 	fi
+}
+
+xml_get()
+{
+  local in_file xpath
+  in_file=$1
+  xpath=$2
+
+  echo "`xmllint --xpath "$xpath" $1`"
+}
+
+json_get()
+{
+  local in_file k
+  in_file=$1
+  k=$2
+  echo `json_xs < $in_file | grep $k | sed -n 's/^.* : "\(.*\)".*/\1/p'`
 }
 
 #
@@ -60,10 +92,54 @@ expect()
 #
 
 set -x
-expect auth/export 200 json
+expect auth/export 200 plain
 expect auth/export.json 200 json
 expect auth/export.xml 200 xml
 expect auth/export 200 xml "Accept: application/xml"
+
+expect auth/add 400 plain
+expect auth/add.json 400 json
+expect auth/add.xml 400 xml
+
+expect auth/add?entity=client.foo 200 plain
+expect auth/add.json?entity=client.bar 200 json
+expect auth/add.xml?entity=client.baz 200 xml
+
+expect auth/get 400 plain
+expect auth/get.json 400 json
+expect auth/get.xml 400 json
+
+expect auth/get?entity=client.bar 200 plain
+expect auth/get.json?entity=client.baz 200 json
+expect auth/get.xml?entity=client.foo 200 xml
+
+out_file="/tmp/cephtest.out.baz"
+expect auth/get?entity=client.baz 200 plain "" "$out_file.plain"
+entity_name=`cat $out_file.plain | head -n 1 | sed -n 's/\[\(.*\)\]/\1/p'`
+entity_key=`cat $out_file.plain | head -n 2 | tail -n 1 | sed -n 's/.*= \(.*\)$/\1/p'`
+expect auth/get.json?entity=client.baz 200 json "" "$out_file.json"
+expect auth/get.xml?entity=client.baz 200 xml "" "$out_file.xml"
+json_entity=$(json_get "$out_file.json" 'entity')
+json_key=$(json_get "$out_file.json" 'key')
+xml_entity=$(xml_get "$out_file.xml" '//response/output/auth/auth_entities/entity/text()')
+xml_key=$(xml_get "$out_file.xml" '//response/output/auth/auth_entities/key/text()')
+
+[[ "$entity_name" != "$json_entity" || "$entity_name" != "$xml_entity" ]] && return 1
+[[ "$entity_key" != "$json_key" || "$entity_key" != "$xml_key" ]] && return 1
+
+expect auth/get-or-create-key 400 plain
+expect auth/get-or-create-key.json 400 json
+expect auth/get-or-create-key.xml 400 xml
+
+expect auth/get-or-create-key?entity=client.baz 200 plain "" "$out_file.plain"
+expect auth/get-or-create-key.json?entity=client.baz 200 json "" "$out_file.json"
+expect auth/get-or-create-key.xml?entity=client.baz 200 xml "" "$out_file.xml"
+json_key=$(json_get "$out_file.json" 'key')
+xml_key=$(xml_get "$out_file.xml" '//response/output/auth/key/text()')
+
+[[ "$entity_key" != "$json_key" || "$entity_key" != "$xml_key" ]] && return 1
+
+
 exit 0
 
 ceph auth add client.xx mon allow osd "allow *"

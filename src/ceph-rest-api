@@ -168,7 +168,7 @@ def api_setup():
     port = int(port)
 
     loglevel = get_conf(cfg, 'log_level') or 'warning'
-    logfile = get_conf(cfg, 'log_file') or '/var/lib/ceph/ceph-rest-api.log'
+    logfile = get_conf(cfg, 'log_file') or glob.logfile
     app.logger.addHandler(logging.handlers.WatchedFileHandler(logfile))
     app.logger.setLevel(LOGLEVELS[loglevel.lower()])
     for h in app.logger.handlers:
