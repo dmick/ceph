@@ -27,7 +27,7 @@ class Formatter {
   virtual ~Formatter();
 
   virtual void flush(std::ostream& os) = 0;
-  virtual void flush(bufferlist &bl) {
+  void flush(bufferlist &bl) {
     std::stringstream os;
     flush(os);
     bl.append(os.str());
