@@ -758,6 +758,9 @@ def validate(args, signature, partial=False):
             # the non-dict list
             if isinstance(myargs, dict):
                 myarg = myargs.pop(desc.name, None)
+                # allow 'param=param' to be expressed as 'param'
+                if myarg == '':
+                    myarg = desc.name
                 # Hack, or clever?  If value is a list, keep the first element,
                 # push rest back onto myargs for later processing.
                 # Could process list directly, but nesting here is already bad
