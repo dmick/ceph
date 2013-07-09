@@ -407,7 +407,7 @@ def handler(catchall_path=None, fmt=None):
 
     app.logger.debug('sending command prefix %s argdict %s', prefix, argdict)
     ret, outbuf, outs = json_command(glob.cluster, prefix=prefix,
-                                     argdict=argdict)
+                                     inbuf=flask.request.data, argdict=argdict)
     if ret:
         return make_response(fmt, '', 'Error: {0} ({1})'.format(outs, ret), 400)
 
