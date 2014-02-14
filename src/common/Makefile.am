@@ -70,11 +70,6 @@ libcommon_la_SOURCES = \
 	common/bloom_filter.cc \
 	common/linux_version.c
 
-if LINUX
-libcommon_la_SOURCES += \
-	common/secret.c
-endif
-
 # these should go out of libcommon
 libcommon_la_SOURCES += \
 	mon/MonCap.cc \

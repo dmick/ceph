@@ -56,6 +56,8 @@ bin_PROGRAMS += ceph-mds
 mount_ceph_SOURCES = mount/mount.ceph.c
 mount_ceph_LDADD = $(LIBCOMMON)
 if LINUX
+mount_ceph_SOURCES += common/secret.c
+mount_ceph_LDADD += $(KEYUTILS_LIB)
 su_sbin_PROGRAMS += mount.ceph
 endif # LINUX
 su_sbin_SCRIPTS += mount.fuse.ceph
@@ -76,10 +78,10 @@ bin_PROGRAMS += ceph-syn
 rbd_SOURCES = rbd.cc
 rbd_LDADD = $(LIBRBD) $(LIBRADOS) $(CEPH_GLOBAL) -lblkid
 if LINUX
+rbd_SOURCES += common/secret.c
+rbd_LDADD += $(KEYUTILS_LIB)
 bin_PROGRAMS += rbd
 endif #LINUX
-
-
 
 # Fuse targets
 
