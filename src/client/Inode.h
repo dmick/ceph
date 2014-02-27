@@ -145,7 +145,7 @@ class Inode {
   ceph_seq_t exporting_mseq;
   utime_t hold_caps_until;
   xlist<Inode*>::item cap_item, flushing_cap_item;
-  tid_t last_flush_tid;
+  ceph_tid_t last_flush_tid;
 
   SnapRealm *snaprealm;
   xlist<Inode*>::item snaprealm_item;

@@ -1206,7 +1206,7 @@ commit 884438febaf12dc380d4a1a3c3c8d3cbefd32399
 Author: Josh Durgin <josh.durgin@inktank.com>
 Date:   Wed Apr 10 12:06:36 2013 -0700
 
-    LibrbdWriteback: use a tid_t for tids
+    LibrbdWriteback: use a ceph_tid_t for tids
     
     An int could be much smaller, leading to overflow and bad behavior.
     

@@ -135,8 +135,8 @@ public:
 
     CopyResults results;
 
-    tid_t objecter_tid;
-    tid_t objecter_tid2;
+    ceph_tid_t objecter_tid;
+    ceph_tid_t objecter_tid2;
 
     object_copy_cursor_t cursor;
     map<string,bufferlist> attrs;
@@ -196,7 +196,7 @@ public:
     OpContext *ctx;             ///< the parent OpContext
     list<OpRequestRef> dup_ops; ///< dup flush requests
     version_t flushed_version;  ///< user version we are flushing
-    tid_t objecter_tid;         ///< copy-from request tid
+    ceph_tid_t objecter_tid;         ///< copy-from request tid
     int rval;                   ///< copy-from result
     bool blocking;              ///< whether we are blocking updates
     bool removal;               ///< we are removing the backend object
@@ -526,7 +526,7 @@ public:
     ObjectContextRef obc;
     map<hobject_t,ObjectContextRef> src_obc;
 
-    tid_t rep_tid;
+    ceph_tid_t rep_tid;
 
     bool rep_aborted, rep_done;
 
@@ -542,7 +542,7 @@ public:
 
     bool queue_snap_trimmer;
     
-    RepGather(OpContext *c, ObjectContextRef pi, tid_t rt, 
+    RepGather(OpContext *c, ObjectContextRef pi, ceph_tid_t rt, 
 	      eversion_t lc) :
       queue_item(this),
       nref(1),
@@ -638,7 +638,7 @@ protected:
   // replica ops
   // [primary|tail]
   xlist<RepGather*> repop_queue;
-  map<tid_t, RepGather*> repop_map;
+  map<ceph_tid_t, RepGather*> repop_map;
 
   friend class C_OSD_RepopApplied;
   friend class C_OSD_RepopCommit;
@@ -646,7 +646,7 @@ protected:
   void repop_all_committed(RepGather *repop);
   void eval_repop(RepGather*);
   void issue_repop(RepGather *repop, utime_t now);
-  RepGather *new_repop(OpContext *ctx, ObjectContextRef obc, tid_t rep_tid);
+  RepGather *new_repop(OpContext *ctx, ObjectContextRef obc, ceph_tid_t rep_tid);
   void remove_repop(RepGather *repop);
 
   RepGather *simple_repop_create(ObjectContextRef obc);
@@ -699,7 +699,7 @@ protected:
   Mutex snapset_contexts_lock;
 
   // debug order that client ops are applied
-  map<hobject_t, map<client_t, tid_t> > debug_op_order;
+  map<hobject_t, map<client_t, ceph_tid_t> > debug_op_order;
 
   void populate_obc_watchers(ObjectContextRef obc);
   void check_blacklisted_obc_watchers(ObjectContextRef obc);
@@ -1023,7 +1023,7 @@ protected:
   void start_copy(CopyCallback *cb, ObjectContextRef obc, hobject_t src,
 		  object_locator_t oloc, version_t version, unsigned flags,
 		  bool mirror_snapset);
-  void process_copy_chunk(hobject_t oid, tid_t tid, int r);
+  void process_copy_chunk(hobject_t oid, ceph_tid_t tid, int r);
   void _write_copy_chunk(CopyOpRef cop, PGBackend::PGTransaction *t);
   void _copy_some(ObjectContextRef obc, CopyOpRef cop);
   void _build_finish_copy_transaction(CopyOpRef cop,
@@ -1040,7 +1040,7 @@ protected:
   map<hobject_t, FlushOpRef> flush_ops;
 
   int start_flush(OpContext *ctx, bool blocking);
-  void finish_flush(hobject_t oid, tid_t tid, int r);
+  void finish_flush(hobject_t oid, ceph_tid_t tid, int r);
   int try_flush_mark_clean(FlushOpRef fop);
   void cancel_flush(FlushOpRef fop, bool requeue);
   void cancel_flush_ops(bool requeue);

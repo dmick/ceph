@@ -198,7 +198,7 @@ void ReplicatedBackend::on_change(ObjectStore::Transaction *t)
     t->remove(get_temp_coll(t), *i);
   }
   temp_contents.clear();
-  for (map<tid_t, InProgressOp>::iterator i = in_progress_ops.begin();
+  for (map<ceph_tid_t, InProgressOp>::iterator i = in_progress_ops.begin();
        i != in_progress_ops.end();
        in_progress_ops.erase(i++)) {
     if (i->second.on_commit)
@@ -594,7 +594,7 @@ void ReplicatedBackend::submit_transaction(
   Context *on_local_applied_sync,
   Context *on_all_acked,
   Context *on_all_commit,
-  tid_t tid,
+  ceph_tid_t tid,
   osd_reqid_t reqid,
   OpRequestRef orig_op)
 {
@@ -706,11 +706,11 @@ void ReplicatedBackend::sub_op_modify_reply(OpRequestRef op)
   op->mark_started();
 
   // must be replication.
-  tid_t rep_tid = r->get_tid();
+  ceph_tid_t rep_tid = r->get_tid();
   int fromosd = r->get_source().num();
 
   if (in_progress_ops.count(rep_tid)) {
-    map<tid_t, InProgressOp>::iterator iter =
+    map<ceph_tid_t, InProgressOp>::iterator iter =
       in_progress_ops.find(rep_tid);
     InProgressOp &ip_op = iter->second;
     MOSDOp *m = NULL;

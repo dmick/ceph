@@ -740,7 +740,7 @@ int librados::RadosClient::osd_command(int osd, vector<string>& cmd,
   Cond cond;
   bool done;
   int ret;
-  tid_t tid;
+  ceph_tid_t tid;
 
   if (osd < 0)
     return -EINVAL;
@@ -767,7 +767,7 @@ int librados::RadosClient::pg_command(pg_t pgid, vector<string>& cmd,
   Cond cond;
   bool done;
   int ret;
-  tid_t tid;
+  ceph_tid_t tid;
   lock.Lock();
   int r = objecter->pg_command(pgid, cmd, inbl, &tid, poutbl, prs,
 		        new C_SafeCond(&mylock, &cond, &done, &ret));
