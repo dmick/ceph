@@ -1,91 +1,91 @@
-libcommon_la_SOURCES = \
-	ceph_ver.c \
-	common/DecayCounter.cc \
-	common/LogClient.cc \
-	common/LogEntry.cc \
-	common/PrebufferedStreambuf.cc \
-	common/SloppyCRCMap.cc \
-	common/BackTrace.cc \
-	common/perf_counters.cc \
-	common/Mutex.cc \
-	common/OutputDataSocket.cc \
-	common/admin_socket.cc \
-	common/admin_socket_client.cc \
-	common/cmdparse.cc \
-	common/escape.c \
-	common/Clock.cc \
-	common/Throttle.cc \
-	common/Timer.cc \
-	common/Finisher.cc \
-	common/environment.cc\
-	common/assert.cc \
-	common/run_cmd.cc \
-	common/WorkQueue.cc \
-	common/ConfUtils.cc \
-	common/MemoryModel.cc \
-	common/armor.c \
-	common/fd.cc \
-	common/xattr.c \
-	common/safe_io.c \
-	common/snap_types.cc \
-	common/str_list.cc \
-	common/str_map.cc \
-	common/errno.cc \
-	common/RefCountedObj.cc \
-	common/blkdev.cc \
-	common/common_init.cc \
-	common/pipe.c \
-	common/ceph_argparse.cc \
-	common/ceph_context.cc \
-	common/buffer.cc \
-	common/code_environment.cc \
-	common/dout.cc \
-	common/signal.cc \
-	common/simple_spin.cc \
-	common/Thread.cc \
-	common/Formatter.cc \
-	common/HeartbeatMap.cc \
-	common/config.cc \
-	common/utf8.c \
-	common/mime.c \
-	common/strtol.cc \
-	common/page.cc \
-	common/lockdep.cc \
-	common/version.cc \
-	common/hex.cc \
-	common/entity_name.cc \
-	common/ceph_crypto.cc \
-	common/ceph_crypto_cms.cc \
-	common/ceph_json.cc \
-	common/ipaddr.cc \
-	common/pick_address.cc \
-	common/util.cc \
-	common/TextTable.cc \
-	common/ceph_fs.cc \
-	common/ceph_hash.cc \
-	common/ceph_strings.cc \
-	common/ceph_frag.cc \
-	common/addr_parsing.c \
-	common/hobject.cc \
-	common/bloom_filter.cc \
-	common/linux_version.c
+common_objs = \
+	ceph_ver.o \
+	common/DecayCounter.lo \
+	common/LogClient.lo \
+	common/LogEntry.lo \
+	common/PrebufferedStreambuf.lo \
+	common/SloppyCRCMap.lo \
+	common/BackTrace.lo \
+	common/perf_counters.lo \
+	common/Mutex.lo \
+	common/OutputDataSocket.lo \
+	common/admin_socket.lo \
+	common/admin_socket_client.lo \
+	common/cmdparse.lo \
+	common/escape.lo \
+	common/Clock.lo \
+	common/Throttle.lo \
+	common/Timer.lo \
+	common/Finisher.lo \
+	common/environment.lo\
+	common/assert.lo \
+	common/run_cmd.lo \
+	common/WorkQueue.lo \
+	common/ConfUtils.lo \
+	common/MemoryModel.lo \
+	common/armor.lo \
+	common/fd.lo \
+	common/xattr.lo \
+	common/safe_io.lo \
+	common/snap_types.lo \
+	common/str_list.lo \
+	common/str_map.lo \
+	common/errno.lo \
+	common/RefCountedObj.lo \
+	common/blkdev.lo \
+	common/common_init.lo \
+	common/pipe.lo \
+	common/ceph_argparse.lo \
+	common/ceph_context.lo \
+	common/buffer.lo \
+	common/code_environment.lo \
+	common/dout.lo \
+	common/signal.lo \
+	common/simple_spin.lo \
+	common/Thread.lo \
+	common/Formatter.lo \
+	common/HeartbeatMap.lo \
+	common/config.lo \
+	common/utf8.lo \
+	common/mime.lo \
+	common/strtol.lo \
+	common/page.lo \
+	common/lockdep.lo \
+	common/version.lo \
+	common/hex.lo \
+	common/entity_name.lo \
+	common/ceph_crypto.lo \
+	common/ceph_crypto_cms.lo \
+	common/ceph_json.lo \
+	common/ipaddr.lo \
+	common/pick_address.lo \
+	common/util.lo \
+	common/TextTable.lo \
+	common/ceph_fs.lo \
+	common/ceph_hash.lo \
+	common/ceph_strings.lo \
+	common/ceph_frag.lo \
+	common/addr_parsing.lo \
+	common/hobject.lo \
+	common/bloom_filter.lo \
+	common/linux_version.lo
 
 if LINUX
-libcommon_la_SOURCES += \
-	common/secret.c
+common_objs += \
+	common/secret.lo
 endif
 
 # these should go out of libcommon
-libcommon_la_SOURCES += \
-	mon/MonCap.cc \
-	mon/MonClient.cc \
-	mon/MonMap.cc \
-	osd/OSDMap.cc \
-	osd/osd_types.cc \
-	osd/HitSet.cc \
-	mds/MDSMap.cc \
-	mds/inode_backtrace.cc \
-	mds/mdstypes.cc 
+common_objs += \
+	mon/MonCap.lo \
+	mon/MonClient.lo \
+	mon/MonMap.lo \
+	osd/OSDMap.lo \
+	osd/osd_types.lo \
+	osd/HitSet.lo \
+	mds/MDSMap.lo \
+	mds/inode_backtrace.lo \
+	mds/mdstypes.lo 
 
 # inject crc in common
 libcommon_crc_la_SOURCES = \
@@ -118,7 +118,7 @@ if LINUX
 LIBCOMMON_DEPS += -lrt
 endif # LINUX
 
-libcommon_la_LIBADD = $(LIBCOMMON_DEPS)
+libcommon_la_LIBADD = $(common_objs)
 
 noinst_HEADERS += \
 	common/BackTrace.h \
@@ -201,7 +201,3 @@ noinst_HEADERS += \
 	common/cmdparse.h \
 	common/hobject.h \
 	common/linux_version.h
-
-noinst_LTLIBRARIES += libcommon.la
-
-

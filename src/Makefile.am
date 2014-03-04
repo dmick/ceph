@@ -36,15 +36,15 @@ include tools/Makefile.am
 # core daemons
 
 ceph_mon_SOURCES = ceph_mon.cc
-ceph_mon_LDADD = $(LIBMON) $(LIBOS) $(CEPH_GLOBAL) $(LIBCOMMON)
+ceph_mon_LDADD = $(LIBMON) $(LIBOS) $(CEPH_GLOBAL) $(common_objs)
 bin_PROGRAMS += ceph-mon
 
 ceph_osd_SOURCES = ceph_osd.cc
-ceph_osd_LDADD = $(LIBOSD) $(CEPH_GLOBAL) $(LIBCOMMON)
+ceph_osd_LDADD = $(LIBOSD) $(CEPH_GLOBAL) $(common_objs)
 bin_PROGRAMS += ceph-osd
 
 ceph_mds_SOURCES = ceph_mds.cc
-ceph_mds_LDADD = $(LIBMDS) $(LIBOSDC) $(CEPH_GLOBAL) $(LIBCOMMON)
+ceph_mds_LDADD = $(LIBMDS) $(LIBOSDC) $(CEPH_GLOBAL) $(common_objs)
 bin_PROGRAMS += ceph-mds
 
 
@@ -54,14 +54,14 @@ bin_PROGRAMS += ceph-mds
 # user tools
 
 mount_ceph_SOURCES = mount/mount.ceph.c
-mount_ceph_LDADD = $(LIBCOMMON)
+mount_ceph_LDADD = $(common_objs)
 if LINUX
 su_sbin_PROGRAMS += mount.ceph
 endif # LINUX
 su_sbin_SCRIPTS += mount.fuse.ceph
 
 cephfs_SOURCES = cephfs.cc
-cephfs_LDADD = $(LIBCOMMON)
+cephfs_LDADD = $(common_objs)
 bin_PROGRAMS += cephfs
 
 librados_config_SOURCES = librados-config.cc
@@ -97,7 +97,7 @@ endif # WITH_FUSE
 # libcephfs (this should go somewhere else in the future)
 
 libcephfs_la_SOURCES = libcephfs.cc
-libcephfs_la_LIBADD = $(LIBCLIENT) $(LIBCOMMON) $(PTHREAD_LIBS) $(CRYPTO_LIBS) $(EXTRALIBS)
+libcephfs_la_LIBADD = $(LIBCLIENT) $(common_objs) $(PTHREAD_LIBS) $(CRYPTO_LIBS) $(EXTRALIBS)
 libcephfs_la_LDFLAGS = ${AM_LDFLAGS} -version-info 1:0:0 -export-symbols-regex '^ceph_.*'
 lib_LTLIBRARIES += libcephfs.la
 

@@ -23,7 +23,7 @@ ceph_test_mutate_LDADD = $(LIBRADOS) $(CEPH_GLOBAL)
 bin_DEBUGPROGRAMS += ceph_test_mutate
 
 ceph_test_rewrite_latency_SOURCES = test/test_rewrite_latency.cc
-ceph_test_rewrite_latency_LDADD = $(LIBCOMMON) $(PTHREAD_LIBS) -lm $(CRYPTO_LIBS) $(EXTRALIBS)
+ceph_test_rewrite_latency_LDADD = $(common_objs) $(PTHREAD_LIBS) -lm $(CRYPTO_LIBS) $(EXTRALIBS)
 bin_DEBUGPROGRAMS += ceph_test_rewrite_latency
 
 ceph_test_msgr_SOURCES = test/testmsgr.cc
@@ -68,7 +68,7 @@ endif
 bin_PROGRAMS += ceph-dencoder
 
 get_command_descriptions_SOURCES = test/common/get_command_descriptions.cc
-get_command_descriptions_LDADD = $(LIBMON) $(LIBCOMMON) $(CEPH_GLOBAL)
+get_command_descriptions_LDADD = $(LIBMON) $(common_objs) $(CEPH_GLOBAL)
 noinst_PROGRAMS += get_command_descriptions
 
 
@@ -76,16 +76,16 @@ noinst_PROGRAMS += get_command_descriptions
 # These should all use explicit _CXXFLAGS so avoid basename conflicts
 
 if WITH_BUILD_TESTS
-test_build_libcommon_SOURCES = \
-	test/buildtest_skeleton.cc \
-	$(libcommon_la_SOURCES)
-test_build_libcommon_LDADD = \
-	$(LIBCOMMON_DEPS) \
-	$(PTHREAD_LIBS) $(CRYPTO_LIBS) $(EXTRALIBS)
-test_build_libcommon_LDFLAGS = -static-libtool-libs
-test_build_libcommon_CFLAGS = $(AM_CFLAGS)
-test_build_libcommon_CXXFLAGS = $(AM_CXXFLAGS)
-bin_DEBUGPROGRAMS += test_build_libcommon
+#test_build_libcommon_SOURCES = \
+#	test/buildtest_skeleton.cc \
+#	$(libcommon_la_SOURCES)
+#test_build_libcommon_LDADD = \
+#	$(common_objs) \
+#	$(PTHREAD_LIBS) $(CRYPTO_LIBS) $(EXTRALIBS)
+#test_build_libcommon_LDFLAGS = -static-libtool-libs
+#test_build_libcommon_CFLAGS = $(AM_CFLAGS)
+#test_build_libcommon_CXXFLAGS = $(AM_CXXFLAGS)
+#bin_DEBUGPROGRAMS += test_build_libcommon
 
 test_build_librados_SOURCES = \
 	test/buildtest_skeleton.cc \
@@ -292,17 +292,17 @@ check_PROGRAMS += unittest_sloppy_crc_map
 
 unittest_util_SOURCES = test/common/test_util.cc
 unittest_util_CXXFLAGS = $(UNITTEST_CXXFLAGS)
-unittest_util_LDADD = $(LIBCOMMON) -lm $(UNITTEST_LDADD) $(CRYPTO_LIBS) $(EXTRALIBS)
+unittest_util_LDADD = $(common_objs) -lm $(UNITTEST_LDADD) $(CRYPTO_LIBS) $(EXTRALIBS)
 check_PROGRAMS += unittest_util
 
 unittest_crush_indep_SOURCES = test/crush/indep.cc
 unittest_crush_indep_CXXFLAGS = $(UNITTEST_CXXFLAGS)
-unittest_crush_indep_LDADD = $(LIBCOMMON) -lm $(UNITTEST_LDADD) $(CEPH_CRUSH) $(EXTRALIBS) $(CEPH_GLOBAL)
+unittest_crush_indep_LDADD = $(common_objs) -lm $(UNITTEST_LDADD) $(CEPH_CRUSH) $(EXTRALIBS) $(CEPH_GLOBAL)
 check_PROGRAMS += unittest_crush_indep
 
 unittest_osdmap_SOURCES = test/osd/TestOSDMap.cc
 unittest_osdmap_CXXFLAGS = $(UNITTEST_CXXFLAGS)
-unittest_osdmap_LDADD = $(UNITTEST_LDADD) $(LIBCOMMON) $(CEPH_GLOBAL)
+unittest_osdmap_LDADD = $(UNITTEST_LDADD) $(common_objs) $(CEPH_GLOBAL)
 check_PROGRAMS += unittest_osdmap
 
 unittest_workqueue_SOURCES = test/test_workqueue.cc
@@ -317,7 +317,7 @@ check_PROGRAMS += unittest_striper
 
 unittest_prebufferedstreambuf_SOURCES = test/test_prebufferedstreambuf.cc 
 unittest_prebufferedstreambuf_CXXFLAGS = $(UNITTEST_CXXFLAGS)
-unittest_prebufferedstreambuf_LDADD = $(LIBCOMMON) $(UNITTEST_LDADD) $(EXTRALIBS)
+unittest_prebufferedstreambuf_LDADD = $(common_objs) $(UNITTEST_LDADD) $(EXTRALIBS)
 check_PROGRAMS += unittest_prebufferedstreambuf
 
 unittest_str_list_SOURCES = test/test_str_list.cc
@@ -326,7 +326,7 @@ unittest_str_list_LDADD = $(UNITTEST_LDADD) $(CEPH_GLOBAL)
 check_PROGRAMS += unittest_str_list
 
 unittest_log_SOURCES = log/test.cc
-unittest_log_LDADD = $(LIBCOMMON) $(UNITTEST_LDADD)
+unittest_log_LDADD = $(common_objs) $(UNITTEST_LDADD)
 unittest_log_CXXFLAGS = $(UNITTEST_CXXFLAGS) -O2
 check_PROGRAMS += unittest_log
 
@@ -480,7 +480,7 @@ unittest_context_CXXFLAGS = $(UNITTEST_CXXFLAGS)
 check_PROGRAMS += unittest_context
 
 unittest_heartbeatmap_SOURCES = test/heartbeat_map.cc
-unittest_heartbeatmap_LDADD = $(LIBCOMMON) $(UNITTEST_LDADD) $(CEPH_GLOBAL)
+unittest_heartbeatmap_LDADD = $(common_objs) $(UNITTEST_LDADD) $(CEPH_GLOBAL)
 unittest_heartbeatmap_CXXFLAGS = $(UNITTEST_CXXFLAGS)
 check_PROGRAMS += unittest_heartbeatmap
 
@@ -542,7 +542,7 @@ unittest_ipaddr_CXXFLAGS = $(UNITTEST_CXXFLAGS)
 check_PROGRAMS += unittest_ipaddr
 
 unittest_texttable_SOURCES = test/test_texttable.cc
-unittest_texttable_LDADD = $(LIBCOMMON) $(UNITTEST_LDADD)
+unittest_texttable_LDADD = $(common_objs) $(UNITTEST_LDADD)
 unittest_texttable_CXXFLAGS = $(UNITTEST_CXXFLAGS)
 check_PROGRAMS += unittest_texttable
 
@@ -866,7 +866,7 @@ ceph_test_c_headers_LDADD = $(LIBRADOS) $(LIBCEPHFS)
 bin_DEBUGPROGRAMS += ceph_test_c_headers
 
 ceph_test_get_blkdev_size_SOURCES = test/test_get_blkdev_size.cc
-ceph_test_get_blkdev_size_LDADD = $(LIBCOMMON)
+ceph_test_get_blkdev_size_LDADD = $(common_objs)
 bin_DEBUGPROGRAMS += ceph_test_get_blkdev_size
 
 noinst_HEADERS += \

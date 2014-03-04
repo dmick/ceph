@@ -130,7 +130,6 @@ EXTRALIBS += -lprofiler
 endif # PROFILER
 
 LIBGLOBAL = libglobal.la
-LIBCOMMON = libcommon.la
 LIBARCH = libarch.la
 LIBPERFGLUE = libperfglue.la
 LIBAUTH = libauth.la
@@ -179,7 +178,7 @@ LIBMDS += $(LIBPERFGLUE)
 LIBOS += -lleveldb -lsnappy
 
 # Use this for binaries requiring libglobal
-CEPH_GLOBAL = $(LIBGLOBAL) $(LIBCOMMON) $(PTHREAD_LIBS) -lm $(CRYPTO_LIBS) $(EXTRALIBS)
+CEPH_GLOBAL = $(LIBGLOBAL) $(common_objs) $(PTHREAD_LIBS) -lm $(CRYPTO_LIBS) $(EXTRALIBS)
 
 # This is set by [lib]/Makefile.am and used for build tests
 LIBCOMMON_DEPS =

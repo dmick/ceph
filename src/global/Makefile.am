@@ -3,7 +3,7 @@ libglobal_la_SOURCES = \
 	global/global_init.cc \
 	global/pidfile.cc \
 	global/signal_handler.cc
-libglobal_la_LIBADD = $(LIBCOMMON)
+libglobal_la_LIBADD = $(common_objs)
 noinst_LTLIBRARIES += libglobal.la
 
 noinst_HEADERS += \

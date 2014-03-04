@@ -47,7 +47,7 @@ using ceph::bufferlist;
  *
  * For daemons and utility programs, there will be only one CephContext.  The
  * CephContext contains the configuration, the dout object, and anything else
- * that you might want to pass to libcommon with every function call.
+ * that you might want to pass to common with every function call.
  */
 class CephContext {
 public:
@@ -116,7 +116,7 @@ private:
 
   uint32_t _module_type;
 
-  /* libcommon service thread.
+  /* common service thread.
    * SIGHUP wakes this thread, which then reopens logfiles */
   friend class CephContextServiceThread;
   CephContextServiceThread *_service_thread;
