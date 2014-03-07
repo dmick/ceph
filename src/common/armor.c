@@ -45,7 +45,7 @@ static int set_str_val(char **pdst, const char *end, char c)
 	return 0;
 }
 
-int ceph_armor_line_break(char *dst, const char *dst_end, const char *src, const char *end, int line_width)
+static int ceph_armor_line_break(char *dst, const char *dst_end, const char *src, const char *end, int line_width)
 {
 	int olen = 0;
 	int line = 0;
