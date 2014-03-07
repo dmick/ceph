@@ -20,7 +20,6 @@ class CephContext;
 typedef boost::variant<std::string, bool, int64_t, double, std::vector<std::string> > cmd_vartype;
 typedef std::map<std::string, cmd_vartype> cmdmap_t;
 
-void dump_cmd_to_json(ceph::Formatter *f, const std::string& cmd);
 void dump_cmd_and_help_to_json(ceph::Formatter *f,
 			       const std::string& secname,
 			       const std::string& cmd,

@@ -26,7 +26,7 @@ using namespace std;
  * see MonCommands.h for more info.
  */
 
-void
+static void
 dump_cmd_to_json(Formatter *f, const string& cmd)
 {
   // put whole command signature in an already-opened container
