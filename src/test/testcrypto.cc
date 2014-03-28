@@ -1,6 +1,8 @@
 #include "auth/Crypto.h"
 #include "common/Clock.h"
 
+#include "global/global_init.h"
+#include "common/ceph_argparse.h"
 #include "common/config.h"
 #include "common/debug.h"
 
@@ -8,8 +10,15 @@
 
 #define AES_KEY_LEN	16
 
-int main(int argc, char *argv[])
+int main(int argc, const char *argv[])
 {
+  vector<const char*> args;
+  argv_to_vec(argc, argv, args);
+  env_to_vec(args);
+
+  global_init(NULL, args, CEPH_ENTITY_TYPE_CLIENT, CODE_ENVIRONMENT_UTILITY, 0);
+  common_init_finish(g_ceph_context);
+
   char aes_key[AES_KEY_LEN];
   memset(aes_key, 0x77, sizeof(aes_key));
   bufferptr keybuf(aes_key, sizeof(aes_key));
