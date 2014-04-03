@@ -30,17 +30,24 @@ void cephx_calc_client_server_challenge(CephContext *cct, CryptoKey& secret, uin
   CephXChallengeBlob b;
   b.server_challenge = server_challenge;
   b.client_challenge = client_challenge;
+  ldout(cct, 0) << "cephx_calc_client_server_challenge: server_challenge " << std::hex << server_challenge << " client challenge " << std::hex << client_challenge << dendl;
+  ldout(cct, 0) << "cephx_calc_client_server_challenge: secret, base64: " << secret.encode_base64() << dendl;
 
   bufferlist enc;
   std::string error;
   if (encode_encrypt(cct, b, secret, enc, error))
     return;
+  ldout(cct, 0) << "cephx_calc_client_server_challenge: encoded output: " << dendl;
+  ostringstream oss;
+  enc.hexdump(oss);
+  ldout(cct, 0) << oss.str() << dendl;
 
   uint64_t k = 0;
   const uint64_t *p = (const uint64_t *)enc.c_str();
   for (int pos = 0; pos + sizeof(k) <= enc.length(); pos+=sizeof(k), p++)
     k ^= *p;
   *key = k;
+  ldout(cct, 0) << "cephx_calc_client_server_challenge: final key: " << std::hex << k << dendl;
 }
 
 

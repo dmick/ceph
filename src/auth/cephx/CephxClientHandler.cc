@@ -48,7 +48,11 @@ int CephxClientHandler::build_request(bufferlist& bl)
     keyring->get_secret(cct->_conf->name, secret);
 
     CephXAuthenticate req;
-    get_random_bytes((char *)&req.client_challenge, sizeof(req.client_challenge));
+    // DJM
+    ::memset((char *)&req.client_challenge, 0x44, sizeof(req.client_challenge));
+    // get_random_bytes((char *)&req.client_challenge, sizeof(req.client_challenge));
+    ldout(cct, 0) << "client_challenge: " << std::hex << req.client_challenge << dendl;
+    // DJM
     std::string error;
     cephx_calc_client_server_challenge(cct, secret, server_challenge,
 				       req.client_challenge, &req.key, error);

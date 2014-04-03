@@ -34,7 +34,10 @@ int CephxServiceHandler::start_session(EntityName& name, bufferlist::iterator& i
 {
   entity_name = name;
 
-  get_random_bytes((char *)&server_challenge, sizeof(server_challenge));
+  // DJM
+  // get_random_bytes((char *)&server_challenge, sizeof(server_challenge));
+  ::memset((char *)&server_challenge, 0x55, sizeof(server_challenge));
+  // DJM
   if (!server_challenge)
     server_challenge = 1;  // always non-zero.
   ldout(cct, 10) << "start_session server_challenge " << hex << server_challenge << dec << dendl;
