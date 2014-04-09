@@ -2,6 +2,7 @@
 
 #include <sstream>
 #include <string>
+#undef _GNU_SOURCE	// get int version of strerror_r
 #include <string.h>
 
 std::string cpp_strerror(int err)
@@ -11,7 +12,9 @@ std::string cpp_strerror(int err)
   if (err < 0)
     err = -err;
   std::ostringstream oss;
-  oss << "(" << err << ") " << strerror_r(err, buf, sizeof(buf));
+  buf[0] = '\0';
+  strerror_r(err, buf, sizeof(buf));
+  oss << "(" << err << ") " << buf;
 
   return oss.str();
 }

@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include "common/safe_io.h"
+#include "common/errno.h"
 
 /**
  * pre-fork fork/daemonize helper class

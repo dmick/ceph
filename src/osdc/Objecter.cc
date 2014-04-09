@@ -45,6 +45,7 @@
 #include "common/config.h"
 #include "common/perf_counters.h"
 #include "include/str_list.h"
+#include "common/errno.h"
 
 
 #define dout_subsys ceph_subsys_objecter
