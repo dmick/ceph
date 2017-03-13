@@ -50,3 +50,6 @@
 [submodule "src/zstd"]
 	path = src/zstd
 	url = https://github.com/facebook/zstd
+[submodule "src/ceph-qa-suite"]
+	path = src/ceph-qa-suite
+	url = git://github.com/ceph/ceph-qa-suite
