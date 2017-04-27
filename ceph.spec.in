@@ -256,6 +256,7 @@ Requires:	python-rados = %{epoch}:%{version}-%{release}
 Requires:	python-rbd = %{epoch}:%{version}-%{release}
 Requires:	python-cephfs = %{epoch}:%{version}-%{release}
 Requires:	python-rgw = %{epoch}:%{version}-%{release}
+Requires:	python-prettytable
 Requires:	python-requests
 %{?systemd_requires}
 %if 0%{?suse_version}
