@@ -5,7 +5,8 @@ A RESTful API for Ceph
 import json
 import errno
 import inspect
-import StringIO
+import os
+from tempfile import mkstemp
 import threading
 import traceback
 import ConfigParser
@@ -14,7 +15,7 @@ import common
 
 from uuid import uuid4
 from pecan import jsonify, make_app
-from OpenSSL import SSL, crypto
+import ssl
 from pecan.rest import RestController
 from werkzeug.serving import make_server
 
@@ -242,14 +243,19 @@ class Module(MgrModule):
             self.set_config_json('cert', self.cert)
             self.set_config_json('pkey', self.pkey)
 
-        # use SSL context for https
-        context = SSL.Context(SSL.TLSv1_METHOD)
-        context.use_certificate(
-            crypto.load_certificate(crypto.FILETYPE_PEM, self.cert)
-        )
-        context.use_privatekey(
-            crypto.load_privatekey(crypto.FILETYPE_PEM, self.pkey)
-        )
+        context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
+        # load_cert_chain needs actual files with names.  This is
+        # less than secure and surely there must be a better way,
+        # but I can't find one.
+        certfd, certpath = mkstemp()
+        pkeyfd, pkeypath = mkstemp()
+        os.write(certfd, self.cert)
+        os.write(pkeyfd, self.pkey)
+        os.close(certfd)
+        os.close(pkeyfd)
+        context.load_cert_chain(certpath, pkeypath)
+        os.remove(certpath)
+        os.remove(pkeypath)
 
         # Create the HTTPS werkzeug server serving pecan app
         self.server = make_server(
