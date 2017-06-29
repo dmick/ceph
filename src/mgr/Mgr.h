@@ -95,7 +95,7 @@ public:
 
   void tick();
 
-  void background_init();
+  void background_init(Context *completion);
   void shutdown();
 };
 
