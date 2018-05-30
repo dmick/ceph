@@ -774,16 +774,8 @@ target_link_libraries(librados-config librados global ${BLKID_LIBRARIES} ${RDMA_
 
 install(TARGETS librados-config DESTINATION bin)
 
-# virtualenv base directory for ceph-disk and ceph-detect-init
-set(CEPH_BUILD_VIRTUALENV $ENV{TMPDIR})
-if(NOT CEPH_BUILD_VIRTUALENV)
-  set(CEPH_BUILD_VIRTUALENV /tmp)
-endif()
-
 add_subdirectory(pybind)
-add_subdirectory(ceph-disk)
 add_subdirectory(ceph-volume)
-add_subdirectory(ceph-detect-init)
 
 ## dencoder
 if(HAS_VTA)
@@ -968,7 +960,6 @@ install(PROGRAMS
 
 install(PROGRAMS
   ${CMAKE_SOURCE_DIR}/src/ceph-create-keys
-#  ${CMAKE_SOURCE_DIR}/src/ceph-disk
   DESTINATION sbin)
 
 add_subdirectory(bash_completion)
