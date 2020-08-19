@@ -2109,7 +2109,9 @@ To check that the host is reachable:
             try:
                 self.cephadm_services[daemon_type].create(daemon_spec)
             except (RuntimeError, OrchestratorError) as e:
-                self.log.warning("Failed while placing %s.%s on %s, skipping:\n%s" % (daemon_type, daemon_id, host, e))
+                self.events.for_service(spec, 'ERROR',
+                    f"Failed while placing {daemon_type}.{daemon_id}"
+                    "on {host}: {e}")
                 r = False
                 continue
 
