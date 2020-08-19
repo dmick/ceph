@@ -2038,6 +2038,8 @@ To check that the host is reachable:
         if daemon_type == 'osd':
             self.osd_service.create_from_spec(cast(DriveGroupSpec, spec))
             # TODO: return True would result in a busy loop
+            # can't know if daemon count changed; create_from_spec doesn't
+            # return a solid indication
             return False
 
         daemons = self.cache.get_daemons_by_service(service_name)
@@ -2071,7 +2073,7 @@ To check that the host is reachable:
         hosts: List[HostPlacementSpec] = ha.place()
         self.log.debug('Usable hosts: %s' % hosts)
 
-        r = False
+        r = None
 
         # sanity check
         if daemon_type in ['mon', 'mgr'] and len(hosts) < 1:
@@ -2087,7 +2089,6 @@ To check that the host is reachable:
         remove_daemon_hosts: Set[orchestrator.DaemonDescription] = ha.remove_daemon_hosts(hosts)
         self.log.debug('Hosts that will loose daemons: %s' % remove_daemon_hosts)
 
-        r = True
         for host, network, name in add_daemon_hosts:
             daemon_id = self.get_unique_name(daemon_type, host, daemons,
                                              prefix=spec.service_id,
@@ -2108,11 +2109,15 @@ To check that the host is reachable:
 
             try:
                 self.cephadm_services[daemon_type].create(daemon_spec)
+                r = True
             except (RuntimeError, OrchestratorError) as e:
                 self.events.for_service(spec, 'ERROR',
                     f"Failed while placing {daemon_type}.{daemon_id}"
                     "on {host}: {e}")
-                r = False
+                # only return "no change" if no one else has already succeeded.
+                # later successes will also change to True
+                if r is None:
+                    r = False
                 continue
 
             # add to daemon list so next name(s) will also be unique
@@ -2133,10 +2138,13 @@ To check that the host is reachable:
             # let's find a subset that is ok-to-stop
             remove_daemon_hosts.pop()
         for d in remove_daemon_hosts:
+            r = True
             # NOTE: we are passing the 'force' flag here, which means
             # we can delete a mon instances data.
             self._remove_daemon(d.name(), d.hostname)
 
+        if r is None:
+            r = False
         return r
 
     def _apply_all_services(self):
