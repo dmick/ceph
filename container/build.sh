@@ -22,6 +22,8 @@ For a release build: (from ceph.git, built and pushed to download.ceph.com)
 CI_CONTAINER: must be 'false'
 and you must also add
 VERSION (for instance, 19.1.0) for tagging the image
+
+You can avoid the push step (for testing) by setting NO_PUSH to anything
 EOF
 }
 
@@ -104,18 +106,24 @@ if [[ ${CI_CONTAINER} == "true" ]] ; then
     sudo podman tag ${image_id} ${branch_repo_tag}
     sudo podman tag ${image_id} ${sha1_repo_tag}
 
-    sudo podman login -u ${CONTAINER_REPO_USERNAME} -p ${CONTAINER_REPO_PASSWORD} ${CONTAINER_REPO_HOSTNAME}
+    if [[ -z "${NO_PUSH}" ]] ; then
+        sudo podman login -u ${CONTAINER_REPO_USERNAME} -p ${CONTAINER_REPO_PASSWORD} ${CONTAINER_REPO_HOSTNAME}
+    fi
 
     if [[ ${FLAVOR} == "crimson" && ${ARCH} == "x86_64" ]] ; then
         sha1_flavor_repo_tag=${sha1_repo_tag}-${FLAVOR}
         sudo podman tag ${image_id} ${sha1_flavor_repo_tag}
-        sudo podman push ${sha1_flavor_repo_tag}
+        if [[ -z "${NO_PUSH}" ]] ; then
+            sudo podman push ${sha1_flavor_repo_tag}
+        fi
         exit
     fi
 
-    sudo podman push ${full_repo_tag}
-    sudo podman push ${branch_repo_tag}
-    sudo podman push ${sha1_repo_tag}
+    if [[ -z "${NO_PUSH}" ]] ; then
+        sudo podman push ${full_repo_tag}
+        sudo podman push ${branch_repo_tag}
+        sudo podman push ${sha1_repo_tag}
+    fi
 else
     #
     # non-CI build.  Tags are like v19.1.0-20240701
@@ -124,7 +132,9 @@ else
     version_tag=${repopath}/prerelease/ceph-${ARCH}:${VERSION}-${builddate}
 
     sudo podman tag ${image_id} ${version_tag}
-    sudo podman push ${image_id} ${version_tag}
+    if [[ -z "${NO_PUSH}" ]] ; then
+        sudo podman push ${image_id} ${version_tag}
+    fi
 fi
 
 
