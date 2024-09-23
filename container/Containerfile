@@ -159,13 +159,13 @@ RUN echo "systemd-udev" >> packages.txt
 # 'ps' (from procps-ng) and 'hostname' are very valuable for debugging and CI
 # TODO: remove sg3_utils once they are moved to ceph.spec.in with libstoragemgmt
 #       ref: https://github.com/ceph/ceph-container/pull/2013#issuecomment-1248606472
-RUN echo "gdisk hostname procps-ng sg3_utils e2fsprogs lvm2 gcc" >>packages.txt
+RUN echo "gdisk hostname procps-ng sg3_utils e2fsprogs lvm2 gcc" >> packages.txt
 
 # scikit
-RUN echo "python3-scikit-learn" >>packages.txt
+RUN echo "python3-scikit-learn" >> packages.txt
 
 # ceph-node-proxy
-RUN echo "ceph-node-proxy" >>packages.txt
+RUN echo "ceph-node-proxy" >> packages.txt
 
 RUN echo "=== PACKAGES TO BE INSTALLED ==="; cat packages.txt
 RUN echo "=== INSTALLING ===" ; \
