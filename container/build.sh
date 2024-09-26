@@ -48,7 +48,7 @@ fi
 # BRANCH will be, say, origin/main.  remove <remote>/
 BRANCH=${BRANCH##*/}
 
-sudo podman build --squash -f $CFILE -t build.sh.output \
+podman build --squash -f $CFILE -t build.sh.output \
     --build-arg FROM_IMAGE=${FROM_IMAGE:-quay.io/centos/centos:stream9} \
     --build-arg CEPH_SHA1=${CEPH_SHA1} \
     --build-arg CEPH_GIT_REPO=${ceph_git_repo} \
@@ -57,7 +57,7 @@ sudo podman build --squash -f $CFILE -t build.sh.output \
     --build-arg CI_CONTAINER=${CI_CONTAINER:-default} \
     2>&1 
 
-image_id=$(sudo podman image ls localhost/build.sh.output --format '{{.ID}}')
+image_id=$(podman image ls localhost/build.sh.output --format '{{.ID}}')
 
 # grab useful image attributes for building the tag
 #
@@ -76,8 +76,8 @@ image_id=$(sudo podman image ls localhost/build.sh.output --format '{{.ID}}')
 # so that vars will get the output of the first command, newline, output
 # of the second command
 #
-vars="$(sudo podman inspect -f '{{printf "export CEPH_CONTAINER_ARCH=%v" .Architecture}}' ${image_id})
-$(sudo podman inspect -f '{{range $index, $value := .Config.Env}}export CEPH_CONTAINER_{{$value}}{{println}}{{end}}' ${image_id})"
+vars="$(podman inspect -f '{{printf "export CEPH_CONTAINER_ARCH=%v" .Architecture}}' ${image_id})
+$(podman inspect -f '{{range $index, $value := .Config.Env}}export CEPH_CONTAINER_{{$value}}{{println}}{{end}}' ${image_id})"
 vars="$(echo "${vars}" | grep -v PATH)"
 eval ${vars}
 
@@ -102,27 +102,27 @@ if [[ ${CI_CONTAINER} == "true" ]] ; then
         sha1_repo_tag=${sha1_repo_tag}-aarch64
     fi
 
-    sudo podman tag ${image_id} ${full_repo_tag}
-    sudo podman tag ${image_id} ${branch_repo_tag}
-    sudo podman tag ${image_id} ${sha1_repo_tag}
+    podman tag ${image_id} ${full_repo_tag}
+    podman tag ${image_id} ${branch_repo_tag}
+    podman tag ${image_id} ${sha1_repo_tag}
 
     if [[ -z "${NO_PUSH}" ]] ; then
-        sudo podman login -u ${CONTAINER_REPO_USERNAME} -p ${CONTAINER_REPO_PASSWORD} ${CONTAINER_REPO_HOSTNAME}
+        podman login -u ${CONTAINER_REPO_USERNAME} -p ${CONTAINER_REPO_PASSWORD} ${CONTAINER_REPO_HOSTNAME}
     fi
 
     if [[ ${FLAVOR} == "crimson" && ${ARCH} == "x86_64" ]] ; then
         sha1_flavor_repo_tag=${sha1_repo_tag}-${FLAVOR}
-        sudo podman tag ${image_id} ${sha1_flavor_repo_tag}
+        podman tag ${image_id} ${sha1_flavor_repo_tag}
         if [[ -z "${NO_PUSH}" ]] ; then
-            sudo podman push ${sha1_flavor_repo_tag}
+            podman push ${sha1_flavor_repo_tag}
         fi
         exit
     fi
 
     if [[ -z "${NO_PUSH}" ]] ; then
-        sudo podman push ${full_repo_tag}
-        sudo podman push ${branch_repo_tag}
-        sudo podman push ${sha1_repo_tag}
+        podman push ${full_repo_tag}
+        podman push ${branch_repo_tag}
+        podman push ${sha1_repo_tag}
     fi
 else
     #
@@ -131,9 +131,9 @@ else
     #
     version_tag=${repopath}/prerelease/ceph-${ARCH}:${VERSION}-${builddate}
 
-    sudo podman tag ${image_id} ${version_tag}
+    podman tag ${image_id} ${version_tag}
     if [[ -z "${NO_PUSH}" ]] ; then
-        sudo podman push ${image_id} ${version_tag}
+        podman push ${image_id} ${version_tag}
     fi
 fi
 
