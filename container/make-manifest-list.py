@@ -83,7 +83,10 @@ def get_image_inspect(path):
 
 
 def get_sha1(info):
-    return info['Labels']['GIT_COMMIT']
+    labels = info.get('Labels', None)
+    if not labels:
+        return None
+    return labels.get('CEPH_SHA1', None)
 
 
 def main():
