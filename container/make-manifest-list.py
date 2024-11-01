@@ -90,11 +90,11 @@ def get_sha1(info):
 
 
 def main():
-    host = os.environ.get('HOST', 'quay.io')
-    amd64_repo = os.environ.get('AMD64_REPO', 'ceph/ceph-amd64')
-    arm64_repo = os.environ.get('ARM64_REPO', 'ceph/ceph-arm64')
+    host = os.environ.get('HOST', 'quay.ceph.io')
+    amd64_repo = os.environ.get('AMD64_REPO', 'ceph/prerelease-amd64')
+    arm64_repo = os.environ.get('ARM64_REPO', 'ceph/prerelease-arm64')
     manifest_host = os.environ.get('MANIFEST_HOST', host)
-    manifest_repo = os.environ.get('MANIFEST_REPO', 'ceph/ceph')
+    manifest_repo = os.environ.get('MANIFEST_REPO', 'ceph/prerelease')
     dump_vars(
         ('host',
          'amd64_repo',

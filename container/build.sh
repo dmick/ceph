@@ -162,9 +162,9 @@ if [[ ${CI_CONTAINER} == "true" ]] ; then
 else
     #
     # non-CI build.  Tags are like v19.1.0-20240701
-    # push to quay.ceph.io/ceph/prerelease
+    # push to quay.ceph.io/ceph/prerelease-$ARCH
     #
-    version_tag=${repopath}/prerelease/ceph-${ARCH}:${VERSION}-${builddate}
+    version_tag=${repopath}/prerelease-${ARCH}:${VERSION}-${builddate}
 
     podman tag ${image_id} ${version_tag}
     if [[ -z "${NO_PUSH}" ]] ; then
