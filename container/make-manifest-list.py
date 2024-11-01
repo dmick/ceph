@@ -66,9 +66,11 @@ def run_command_show_failure(args):
 
 @functools.lru_cache
 def get_latest_tag(path):
-    latest_tag = json.loads(
-        get_command_output(f'skopeo list-tags docker://{path}')
-    )['Tags'][-1]
+    try:
+        cmdout = get_command_output(f'skopeo list-tags docker://{path}')
+        latest_tag = json.loads(cmdout)['Tags'][-1]
+    except IndexError:
+        return None
     return latest_tag
 
 
