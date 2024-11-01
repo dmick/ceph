@@ -47,10 +47,7 @@ def run_command(args):
         return True, result.stdout, result.stderr
 
     except subprocess.CalledProcessError as e:
-        print(f"Command '{e.cmd}' returned {e.returncode}")
-        print("Error output:")
-        print(e.stderr)
-        return False, result.stdout, result.stderr
+        return False, e.output, e.stderr
 
 
 def get_command_output(args):
