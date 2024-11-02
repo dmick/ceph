@@ -7,6 +7,7 @@
 #
 # uses scratch local manifest LOCALMANIFEST, will be destroyed if present
 
+import argparse
 from datetime import datetime
 import functools
 import json
@@ -89,7 +90,14 @@ def get_sha1(info):
     return labels.get('CEPH_SHA1', None)
 
 
+def parse_args():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('-n', '--dry-run', action='store_true', help='do all local manipulations but do not push final containers to MANIFEST_HOST')
+    args = ap.parse_args()
+    return args
+
 def main():
+    args = parse_args()
     host = os.environ.get('HOST', 'quay.ceph.io')
     amd64_repo = os.environ.get('AMD64_REPO', 'ceph/prerelease-amd64')
     arm64_repo = os.environ.get('ARM64_REPO', 'ceph/prerelease-arm64')
@@ -158,8 +166,11 @@ def main():
             f'v{major}.{minor}.{micro}',
             f'v{major}.{minor}.{micro}-{datetime.today().strftime("%Y%m%d")}',
         ):
-        run_command_show_failure(
-          f'podman manifest push localhost/m {base}:{t}')
+        if args.dryrun:
+            print(f'skipping podman manifest push localhost/m {base}:{t}')
+        else:
+            run_command_show_failure(
+              f'podman manifest push localhost/m {base}:{t}')
 
 
 if (__name__ == '__main__'):
