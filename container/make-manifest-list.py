@@ -98,13 +98,13 @@ def parse_args():
 
 def main():
     args = parse_args()
-    host = os.environ.get('HOST', 'quay.ceph.io')
+    container_host = os.environ.get('CONTAINER_HOST', 'quay.ceph.io')
     amd64_repo = os.environ.get('AMD64_REPO', 'ceph/prerelease-amd64')
     arm64_repo = os.environ.get('ARM64_REPO', 'ceph/prerelease-arm64')
-    manifest_host = os.environ.get('MANIFEST_HOST', host)
+    manifest_host = os.environ.get('MANIFEST_HOST', container_host)
     manifest_repo = os.environ.get('MANIFEST_REPO', 'ceph/prerelease')
     dump_vars(
-        ('host',
+        ('container_host',
          'amd64_repo',
          'arm64_repo',
          'manifest_host',
@@ -113,8 +113,8 @@ def main():
         locals())
 
     repopaths = (
-        f'{host}/{amd64_repo}',
-        f'{host}/{arm64_repo}',
+        f'{container_host}/{amd64_repo}',
+        f'{container_host}/{arm64_repo}',
     )
     tags = [get_latest_tag(p) for p in repopaths]
     print(f'latest tags: amd64:{tags[0]} arm64:{tags[1]}')
