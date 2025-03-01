@@ -1,0 +1,16 @@
+---
+name: "Trigger make check"
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  list-changes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: List changed files
+        uses: knu/changed-files@v1.0.0
+        id: changed_files
+      - name: Echo changed files
+        run: "echo changed files: ${{ steps.changed_files.outputs }}"
+
