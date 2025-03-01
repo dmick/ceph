@@ -10,3 +10,7 @@ jobs:
     steps:
       - name: List changed files
         uses: knu/changed-files@v1.0.0
+        id: changed_files
+      - name: Echo changed files
+        run: echo "changed files: ${{ steps.changed_files.outputs }}"
+
