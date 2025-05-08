@@ -1,16 +1,29 @@
 ---
 name: "Trigger make check"
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
 
 jobs:
-  list-changes:
+  debug:
     runs-on: ubuntu-latest
     steps:
+      - run: |
+          echo "$COMMENT_BODY"
+        env: 
+          COMMENT_BODY: ${{ github.event.comment.body }}
+
+  list-changes:
+    runs-on: ubuntu-latest
+    needs: debug
+    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, 'trigger') }}
+    steps:
       - name: List changed files
-        uses: knu/changed-files@v1.0.0
+        uses: knu/changed-files@v1
+        with:
+          paths: "**"
         id: changed_files
+
       - name: Echo changed files
-        run: "echo changed files: ${{ steps.changed_files.outputs }}"
+        run: "echo changed files: ${{ steps.changed_files.outputs.all }}"
 
