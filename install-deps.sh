@@ -361,14 +361,15 @@ function preload_wheels_for_tox() {
     popd > /dev/null
 }
 
-for_make_check=false
-if tty -s; then
-    # interactive
-    for_make_check=true
-elif [ $FOR_MAKE_CHECK ]; then
-    for_make_check=true
+if [ $FOR_MAKE_CHECK ] ; then
+    for_make_check=$FOR_MAKE_CHECK
 else
-    for_make_check=false
+    if tty -s; then
+        # interactive
+        for_make_check=true
+    else
+        for_make_check=false
+    fi
 fi
 
 if [ x$(uname)x = xFreeBSDx ]; then
@@ -513,10 +514,12 @@ else
         ci_debug "build_profiles=$build_profiles"
         ci_debug "Now running 'mk-build-deps' and installing ceph-build-deps package"
 
+
         $SUDO env DEBIAN_FRONTEND=noninteractive mk-build-deps \
               --build-profiles "${build_profiles#,}" \
               --install --remove \
               --tool="apt-get -y --no-install-recommends $backports" $control || exit 1
+
         ci_debug "Removing ceph-build-deps"
         $SUDO env DEBIAN_FRONTEND=noninteractive apt-get -y remove ceph-build-deps
         if [ "$control" != "debian/control" ] ; then rm $control; fi

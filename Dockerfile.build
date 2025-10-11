@@ -17,7 +17,8 @@ COPY \
 
 
 FROM $DISTRO
-ENV FOR_MAKE_CHECK=1
+#ARG FOR_MAKE_CHECK=1
+ARG FOR_MAKE_CHECK=0
 ARG DISTRO
 ARG CEPH_CTR_SRC=/usr/local/src/ceph
 ARG CLEAN_DNF=yes
@@ -32,6 +33,7 @@ RUN DISTRO=$DISTRO \
     CLEAN_DNF=$CLEAN_DNF \
     CEPH_CTR_SRC=${CEPH_CTR_SRC} \
     WITH_CRIMSON=${WITH_CRIMSON} \
+    FOR_MAKE_CHECK=${FOR_MAKE_CHECK} \
     bash -x ${CEPH_CTR_SRC}/buildcontainer-setup.sh
 RUN \
     SCCACHE_URL="https://github.com/mozilla/sccache/releases/download/v${SCCACHE_VERSION}/sccache-v${SCCACHE_VERSION}-$(uname -m)-unknown-linux-musl.tar.gz"; \
